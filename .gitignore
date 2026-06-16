@@ -1,0 +1,39 @@
+# ---- Python / Django ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+*.sqlite3
+*.sqlite3-journal
+/backend/staticfiles/
+/backend/media/
+.coverage
+htmlcov/
+.pytest_cache/
+.ruff_cache/
+
+# ---- Node / Vite ----
+node_modules/
+/frontend/dist/
+/frontend/.vite/
+*.local
+
+# ---- Secrets / env ----
+.env
+.env.*
+!.env.example
+
+# ---- Editor / OS ----
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+
+# ---- Claude Code local tooling / installed skills ----
+.claude/
+
+# ---- Generated ----
+/backend/schema.yml
+/docs/api.md

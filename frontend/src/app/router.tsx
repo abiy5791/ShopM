@@ -1,0 +1,67 @@
+import { Route, Routes } from "react-router-dom";
+
+import ActivityPage from "@/features/activity/ActivityPage";
+import LoginPage from "@/features/auth/LoginPage";
+import DashboardPage from "@/features/dashboard/DashboardPage";
+import PlaceholderPage from "@/features/misc/PlaceholderPage";
+import SettingsPage from "@/features/settings/SettingsPage";
+
+import { RequireAuth, RoleGate } from "./guards";
+import { AppShell } from "./layout/AppShell";
+
+export function AppRouter() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+
+      <Route
+        element={
+          <RequireAuth>
+            <AppShell />
+          </RequireAuth>
+        }
+      >
+        <Route index element={<DashboardPage />} />
+        <Route
+          path="pos"
+          element={
+            <RoleGate allow={["owner", "cashier"]}>
+              <PlaceholderPage title="Point of Sale" phase={2} />
+            </RoleGate>
+          }
+        />
+        <Route path="products" element={<PlaceholderPage title="Products" phase={1} />} />
+        <Route
+          path="reports"
+          element={
+            <RoleGate allow={["owner"]}>
+              <PlaceholderPage title="Reports" phase={5} />
+            </RoleGate>
+          }
+        />
+        <Route path="activity" element={<ActivityPage />} />
+        <Route
+          path="settings"
+          element={
+            <RoleGate allow={["owner"]}>
+              <SettingsPage />
+            </RoleGate>
+          }
+        />
+      </Route>
+
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+}
+
+function NotFound() {
+  return (
+    <div className="flex min-h-full items-center justify-center p-8 text-center">
+      <div>
+        <h1 className="text-2xl font-semibold">404</h1>
+        <p className="mt-1 text-sm text-muted-foreground">This page doesn&apos;t exist.</p>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,101 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Design tokens — ui-ux-pro-max "Industrial slate + stock green" palette,
+ * expressed as HSL channels for shadcn/ui. See docs/DESIGN_SYSTEM.md.
+ */
+@layer base {
+  :root {
+    --background: 210 40% 98%; /* #F8FAFC */
+    --foreground: 222 47% 11%; /* #0F172A */
+
+    --card: 0 0% 100%; /* #FFFFFF */
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 215 25% 27%; /* slate-700 #334155 */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 215 19% 35%; /* slate-600 #475569 */
+    --secondary-foreground: 0 0% 100%;
+
+    --accent: 161 94% 30%; /* emerald-600 #059669 (stock/money) */
+    --accent-foreground: 0 0% 100%;
+
+    --muted: 210 17% 95%; /* #F2F3F4 */
+    --muted-foreground: 215 16% 47%; /* slate-500 #64748B */
+
+    --destructive: 0 72% 51%; /* #DC2626 */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 20% 91%; /* #E6E8EA */
+    --input: 214 20% 91%;
+    --ring: 215 25% 27%;
+
+    /* Financial semantics */
+    --profit: 142 71% 45%; /* #22C55E */
+    --loss: 0 84% 60%; /* #EF4444 */
+
+    /* Sidebar (dense dashboard chrome) */
+    --sidebar: 222 47% 11%; /* slate-950-ish */
+    --sidebar-foreground: 210 40% 96%;
+    --sidebar-accent: 161 94% 30%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 222 47% 9%;
+    --foreground: 210 40% 96%;
+    --card: 222 33% 13%;
+    --card-foreground: 210 40% 96%;
+    --popover: 222 33% 13%;
+    --popover-foreground: 210 40% 96%;
+    --primary: 210 40% 96%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 215 19% 35%;
+    --secondary-foreground: 210 40% 96%;
+    --accent: 161 84% 39%;
+    --accent-foreground: 222 47% 11%;
+    --muted: 217 19% 20%;
+    --muted-foreground: 215 16% 65%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 217 19% 24%;
+    --input: 217 19% 24%;
+    --ring: 210 40% 80%;
+    --profit: 142 71% 45%;
+    --loss: 0 84% 60%;
+    --sidebar: 222 47% 7%;
+    --sidebar-foreground: 210 40% 90%;
+    --sidebar-accent: 161 84% 39%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+  /* Align columns of figures in tables / POS / reports. */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Honour reduced-motion (UX checklist). */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

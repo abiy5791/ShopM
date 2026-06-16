@@ -1,0 +1,55 @@
+[project]
+name = "shopm-backend"
+version = "0.1.0"
+description = "ShopM — multi-shop retail management API"
+requires-python = ">=3.12"
+dependencies = [
+    "Django==5.1.4",
+    "djangorestframework==3.15.2",
+    "djangorestframework-simplejwt==5.3.1",
+    "drf-spectacular==0.28.0",
+    "django-cors-headers==4.6.0",
+    "django-environ==0.11.2",
+    "django-filter==24.3",
+    "celery==5.4.0",
+    "redis==5.2.0",
+    "psycopg[binary]==3.2.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.3.4",
+    "pytest-django==4.9.0",
+    "ruff==0.8.4",
+    "black==24.10.0",
+]
+prod = [
+    "gunicorn==23.0.0",
+    "whitenoise==6.8.2",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+# Source is a Django project, not an importable package tree; skip auto-discovery.
+py-modules = []
+
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["**/migrations/*", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "DJ"]
+ignore = ["E501"]  # black owns line length
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.test"
+python_files = ["test_*.py", "tests.py", "*_tests.py"]
+addopts = "-q"
