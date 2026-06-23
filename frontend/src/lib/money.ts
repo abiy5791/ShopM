@@ -20,6 +20,21 @@ export function exponent(currency: string): number {
   return EXPONENTS[currency.toUpperCase()] ?? 2;
 }
 
+/**
+ * Parse a human amount (e.g. "12.50") into integer minor units (1250).
+ * Returns NaN for invalid input so callers / Zod can reject it.
+ */
+export function parseMoney(input: string | number, currency: string): number {
+  const value = typeof input === "number" ? input : Number(String(input).trim());
+  if (!Number.isFinite(value)) return NaN;
+  return Math.round(value * 10 ** exponent(currency));
+}
+
+/** Integer minor units -> a plain major-unit string for editing, e.g. 1250 -> "12.50". */
+export function minorToInput(minor: number, currency: string): string {
+  return (minor / 10 ** exponent(currency)).toFixed(exponent(currency));
+}
+
 /** Format integer minor units, e.g. (1250, "USD") -> "$12.50". */
 export function formatMoney(minor: number, currency: string): string {
   const exp = exponent(currency);

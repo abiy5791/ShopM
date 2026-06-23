@@ -44,6 +44,7 @@ export interface Shop {
   address: string;
   phone: string;
   my_role: RoleName | null;
+  currency: string;
   created_at: string;
 }
 
@@ -68,6 +69,64 @@ export interface ActivityLog {
   ip: string | null;
   user: string | null;
   user_email: string | null;
+  created_at: string;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  created_at: string;
+}
+
+export interface Supplier {
+  id: string;
+  name: string;
+  phone: string;
+  address: string;
+  notes: string;
+  created_at: string;
+}
+
+export type ProductStatus = "active" | "inactive";
+
+export interface Product {
+  id: string;
+  name: string;
+  sku: string;
+  barcode: string;
+  category: string | null;
+  category_name: string | null;
+  supplier: string | null;
+  supplier_name: string | null;
+  // Integer minor units (plan §3.5) — format with formatMoney at the display edge.
+  purchase_price: number;
+  selling_price: number;
+  unit: string;
+  min_stock_alert: number;
+  status: ProductStatus;
+  stock_cached: number;
+  is_low_stock: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type AdjustmentType = "adjustment" | "damage" | "expiry" | "return_in" | "return_out";
+
+export type TransactionType = AdjustmentType | "purchase" | "sale" | "reconcile";
+
+export interface InventoryTransaction {
+  id: string;
+  product: string;
+  product_name: string;
+  product_sku: string;
+  quantity: number;
+  type: TransactionType;
+  unit_cost: number | null;
+  reference_type: string;
+  reference_id: string;
+  user: string | null;
+  user_email: string | null;
+  notes: string;
   created_at: string;
 }
 

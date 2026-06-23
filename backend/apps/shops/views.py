@@ -26,6 +26,7 @@ class ShopViewSet(ReadOnlyModelViewSet):
         my_memberships = ShopMembership.objects.filter(user=user).select_related("role")
         return (
             Shop.objects.filter(memberships__user=user, deleted_at__isnull=True)
+            .select_related("settings")
             .prefetch_related(Prefetch("memberships", queryset=my_memberships))
             .distinct()
             .order_by("name")

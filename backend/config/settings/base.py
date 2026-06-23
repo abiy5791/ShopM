@@ -4,6 +4,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import environ
+from celery.schedules import crontab
 
 # backend/  (config/settings/base.py -> parents[2])
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -41,6 +42,8 @@ LOCAL_APPS = [
     "apps.accounts",
     "apps.shops",
     "apps.activity",
+    "apps.catalog",
+    "apps.inventory",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -190,6 +193,12 @@ CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", default="redis://redis:6379
 CELERY_TASK_ALWAYS_EAGER = False
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
+CELERY_BEAT_SCHEDULE = {
+    "nightly-stock-reconciliation": {
+        "task": "apps.inventory.tasks.reconcile_all_shops",
+        "schedule": crontab(hour=2, minute=0),
+    },
+}
 
 # ---------------------------------------------------------------------------
 # Domain defaults

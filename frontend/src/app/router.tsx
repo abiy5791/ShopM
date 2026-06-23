@@ -4,6 +4,7 @@ import ActivityPage from "@/features/activity/ActivityPage";
 import LoginPage from "@/features/auth/LoginPage";
 import DashboardPage from "@/features/dashboard/DashboardPage";
 import PlaceholderPage from "@/features/misc/PlaceholderPage";
+import ProductsPage from "@/features/products/ProductsPage";
 import SettingsPage from "@/features/settings/SettingsPage";
 
 import { RequireAuth, RoleGate } from "./guards";
@@ -30,7 +31,7 @@ export function AppRouter() {
             </RoleGate>
           }
         />
-        <Route path="products" element={<PlaceholderPage title="Products" phase={1} />} />
+        <Route path="products" element={<ProductsPage />} />
         <Route
           path="reports"
           element={

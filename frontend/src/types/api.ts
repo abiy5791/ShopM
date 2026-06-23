@@ -92,6 +92,114 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+         *
+         *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
+         *     reads stay open to any shop member by default. */
+        get: operations["categories_list"];
+        put?: never;
+        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+         *
+         *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
+         *     reads stay open to any shop member by default. */
+        post: operations["categories_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/categories/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+         *
+         *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
+         *     reads stay open to any shop member by default. */
+        get: operations["categories_retrieve"];
+        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+         *
+         *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
+         *     reads stay open to any shop member by default. */
+        put: operations["categories_update"];
+        post?: never;
+        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+         *
+         *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
+         *     reads stay open to any shop member by default. */
+        delete: operations["categories_destroy"];
+        options?: never;
+        head?: never;
+        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+         *
+         *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
+         *     reads stay open to any shop member by default. */
+        patch: operations["categories_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/inventory/adjust": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description POST /inventory/adjust — manual signed stock movement → one ledger row
+         *     + cached-stock update in a single DB transaction (plan §3.2). Owner only. */
+        post: operations["inventory_adjust_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inventory/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description GET /inventory/transactions — the stock ledger for the active shop. Owner only. */
+        get: operations["inventory_transactions_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inventory/transactions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description GET /inventory/transactions — the stock ledger for the active shop. Owner only. */
+        get: operations["inventory_transactions_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me": {
         parameters: {
             query?: never;
@@ -103,6 +211,113 @@ export interface paths {
         get: operations["me_retrieve"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+         *
+         *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
+         *     reads stay open to any shop member by default. */
+        get: operations["products_list"];
+        put?: never;
+        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+         *
+         *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
+         *     reads stay open to any shop member by default. */
+        post: operations["products_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+         *
+         *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
+         *     reads stay open to any shop member by default. */
+        get: operations["products_retrieve"];
+        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+         *
+         *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
+         *     reads stay open to any shop member by default. */
+        put: operations["products_update"];
+        post?: never;
+        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+         *
+         *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
+         *     reads stay open to any shop member by default. */
+        delete: operations["products_destroy"];
+        options?: never;
+        head?: never;
+        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+         *
+         *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
+         *     reads stay open to any shop member by default. */
+        patch: operations["products_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/products/{id}/stock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Derived stock for a product: cached value and the live ledger sum. */
+        get: operations["products_stock_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Export all products in the active shop as an .xlsx file. */
+        get: operations["products_export_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Import/upsert products from an .xlsx file (keyed on SKU). Owner only. */
+        post: operations["products_import_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -161,6 +376,62 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/suppliers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+         *
+         *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
+         *     reads stay open to any shop member by default. */
+        get: operations["suppliers_list"];
+        put?: never;
+        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+         *
+         *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
+         *     reads stay open to any shop member by default. */
+        post: operations["suppliers_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/suppliers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+         *
+         *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
+         *     reads stay open to any shop member by default. */
+        get: operations["suppliers_retrieve"];
+        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+         *
+         *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
+         *     reads stay open to any shop member by default. */
+        put: operations["suppliers_update"];
+        post?: never;
+        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+         *
+         *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
+         *     reads stay open to any shop member by default. */
+        delete: operations["suppliers_destroy"];
+        options?: never;
+        head?: never;
+        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+         *
+         *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
+         *     reads stay open to any shop member by default. */
+        patch: operations["suppliers_partial_update"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -181,6 +452,49 @@ export interface components {
             /** Format: date-time */
             readonly created_at: string;
         };
+        Category: {
+            /** Format: uuid */
+            readonly id: string;
+            name: string;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        CategoryRequest: {
+            name: string;
+        };
+        InventoryTransaction: {
+            /** Format: uuid */
+            readonly id: string;
+            /** Format: uuid */
+            readonly product: string;
+            readonly product_name: string;
+            readonly product_sku: string;
+            /** @description Signed: positive = stock in, negative = stock out. */
+            readonly quantity: number;
+            readonly type: components["schemas"]["InventoryTransactionTypeEnum"];
+            readonly unit_cost: number | null;
+            readonly reference_type: string;
+            readonly reference_id: string;
+            /** Format: uuid */
+            readonly user: string | null;
+            /** Format: email */
+            readonly user_email: string;
+            readonly notes: string;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        /**
+         * @description * `purchase` - Purchase
+         *     * `sale` - Sale
+         *     * `adjustment` - Adjustment
+         *     * `damage` - Damage
+         *     * `expiry` - Expiry
+         *     * `return_in` - Return in
+         *     * `return_out` - Return out
+         *     * `reconcile` - Reconcile
+         * @enum {string}
+         */
+        InventoryTransactionTypeEnum: "purchase" | "sale" | "adjustment" | "damage" | "expiry" | "return_in" | "return_out" | "reconcile";
         /**
          * @description * `info` - Info
          *     * `warn` - Warning
@@ -216,6 +530,51 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["ActivityLog"][];
         };
+        PaginatedCategoryList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["Category"][];
+        };
+        PaginatedInventoryTransactionList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["InventoryTransaction"][];
+        };
+        PaginatedProductList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["Product"][];
+        };
         PaginatedShopList: {
             /** @example 123 */
             count: number;
@@ -231,6 +590,41 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["Shop"][];
         };
+        PaginatedSupplierList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["Supplier"][];
+        };
+        PatchedCategoryRequest: {
+            name?: string;
+        };
+        PatchedProductRequest: {
+            name?: string;
+            sku?: string;
+            barcode?: string;
+            /** Format: uuid */
+            category?: string | null;
+            /** Format: uuid */
+            supplier?: string | null;
+            /** Format: int64 */
+            purchase_price?: number;
+            /** Format: int64 */
+            selling_price?: number;
+            unit?: string;
+            /** Format: int64 */
+            min_stock_alert?: number;
+            status?: components["schemas"]["StatusEnum"];
+        };
         PatchedShopSettingsRequest: {
             currency?: string;
             /** Format: decimal */
@@ -243,6 +637,56 @@ export interface components {
             language?: string;
             timezone?: string;
         };
+        PatchedSupplierRequest: {
+            name?: string;
+            phone?: string;
+            address?: string;
+            notes?: string;
+        };
+        Product: {
+            /** Format: uuid */
+            readonly id: string;
+            name: string;
+            sku: string;
+            barcode?: string;
+            /** Format: uuid */
+            category?: string | null;
+            readonly category_name: string;
+            /** Format: uuid */
+            supplier?: string | null;
+            readonly supplier_name: string;
+            /** Format: int64 */
+            purchase_price?: number;
+            /** Format: int64 */
+            selling_price?: number;
+            unit?: string;
+            /** Format: int64 */
+            min_stock_alert?: number;
+            status?: components["schemas"]["StatusEnum"];
+            readonly stock_cached: number;
+            readonly is_low_stock: boolean;
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly updated_at: string;
+        };
+        ProductRequest: {
+            name: string;
+            sku: string;
+            barcode?: string;
+            /** Format: uuid */
+            category?: string | null;
+            /** Format: uuid */
+            supplier?: string | null;
+            /** Format: int64 */
+            purchase_price?: number;
+            /** Format: int64 */
+            selling_price?: number;
+            unit?: string;
+            /** Format: int64 */
+            min_stock_alert?: number;
+            status?: components["schemas"]["StatusEnum"];
+        };
         Shop: {
             /** Format: uuid */
             readonly id: string;
@@ -250,6 +694,7 @@ export interface components {
             readonly address: string;
             readonly phone: string;
             readonly my_role: string | null;
+            readonly currency: string;
             /** Format: date-time */
             readonly created_at: string;
         };
@@ -266,6 +711,46 @@ export interface components {
             timezone?: string;
             /** Format: date-time */
             readonly updated_at: string;
+        };
+        /**
+         * @description * `active` - Active
+         *     * `inactive` - Inactive
+         * @enum {string}
+         */
+        StatusEnum: "active" | "inactive";
+        /** @description Input for POST /inventory/adjust — a manual, signed stock movement. */
+        StockAdjustmentRequest: {
+            /** Format: uuid */
+            product: string;
+            quantity: number;
+            type: components["schemas"]["StockAdjustmentTypeEnum"];
+            /** @default  */
+            notes: string;
+        };
+        /**
+         * @description * `adjustment` - adjustment
+         *     * `damage` - damage
+         *     * `expiry` - expiry
+         *     * `return_in` - return_in
+         *     * `return_out` - return_out
+         * @enum {string}
+         */
+        StockAdjustmentTypeEnum: "adjustment" | "damage" | "expiry" | "return_in" | "return_out";
+        Supplier: {
+            /** Format: uuid */
+            readonly id: string;
+            name: string;
+            phone?: string;
+            address?: string;
+            notes?: string;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        SupplierRequest: {
+            name: string;
+            phone?: string;
+            address?: string;
+            notes?: string;
         };
         /** @description JWT login. Adds profile claims and a `user` block to the response. */
         TokenPairRequest: {
@@ -417,6 +902,243 @@ export interface operations {
             };
         };
     };
+    categories_list: {
+        parameters: {
+            query?: {
+                /** @description Which field to use when ordering the results. */
+                ordering?: string;
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+                /** @description A search term. */
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedCategoryList"];
+                };
+            };
+        };
+    };
+    categories_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoryRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["CategoryRequest"];
+                "multipart/form-data": components["schemas"]["CategoryRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Category"];
+                };
+            };
+        };
+    };
+    categories_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this category. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Category"];
+                };
+            };
+        };
+    };
+    categories_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this category. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoryRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["CategoryRequest"];
+                "multipart/form-data": components["schemas"]["CategoryRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Category"];
+                };
+            };
+        };
+    };
+    categories_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this category. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    categories_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this category. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedCategoryRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedCategoryRequest"];
+                "multipart/form-data": components["schemas"]["PatchedCategoryRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Category"];
+                };
+            };
+        };
+    };
+    inventory_adjust_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StockAdjustmentRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["StockAdjustmentRequest"];
+                "multipart/form-data": components["schemas"]["StockAdjustmentRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InventoryTransaction"];
+                };
+            };
+        };
+    };
+    inventory_transactions_list: {
+        parameters: {
+            query?: {
+                /** @description Which field to use when ordering the results. */
+                ordering?: string;
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+                product?: string;
+                /** @description A search term. */
+                search?: string;
+                /** @description * `purchase` - Purchase
+                 *     * `sale` - Sale
+                 *     * `adjustment` - Adjustment
+                 *     * `damage` - Damage
+                 *     * `expiry` - Expiry
+                 *     * `return_in` - Return in
+                 *     * `return_out` - Return out
+                 *     * `reconcile` - Reconcile */
+                type?: "adjustment" | "damage" | "expiry" | "purchase" | "reconcile" | "return_in" | "return_out" | "sale";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedInventoryTransactionList"];
+                };
+            };
+        };
+    };
+    inventory_transactions_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this inventory transaction. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InventoryTransaction"];
+                };
+            };
+        };
+    };
     me_retrieve: {
         parameters: {
             query?: never;
@@ -432,6 +1154,229 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Me"];
+                };
+            };
+        };
+    };
+    products_list: {
+        parameters: {
+            query?: {
+                category?: string;
+                /** @description Which field to use when ordering the results. */
+                ordering?: string;
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+                /** @description A search term. */
+                search?: string;
+                /** @description * `active` - Active
+                 *     * `inactive` - Inactive */
+                status?: "active" | "inactive";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedProductList"];
+                };
+            };
+        };
+    };
+    products_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ProductRequest"];
+                "multipart/form-data": components["schemas"]["ProductRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                };
+            };
+        };
+    };
+    products_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this product. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                };
+            };
+        };
+    };
+    products_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this product. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ProductRequest"];
+                "multipart/form-data": components["schemas"]["ProductRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                };
+            };
+        };
+    };
+    products_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this product. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    products_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this product. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedProductRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedProductRequest"];
+                "multipart/form-data": components["schemas"]["PatchedProductRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                };
+            };
+        };
+    };
+    products_stock_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this product. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    products_export_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
+                };
+            };
+        };
+    };
+    products_import_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file?: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
                 };
             };
         };
@@ -526,6 +1471,158 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Shop"];
+                };
+            };
+        };
+    };
+    suppliers_list: {
+        parameters: {
+            query?: {
+                /** @description Which field to use when ordering the results. */
+                ordering?: string;
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+                /** @description A search term. */
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedSupplierList"];
+                };
+            };
+        };
+    };
+    suppliers_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupplierRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SupplierRequest"];
+                "multipart/form-data": components["schemas"]["SupplierRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Supplier"];
+                };
+            };
+        };
+    };
+    suppliers_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this supplier. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Supplier"];
+                };
+            };
+        };
+    };
+    suppliers_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this supplier. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupplierRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SupplierRequest"];
+                "multipart/form-data": components["schemas"]["SupplierRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Supplier"];
+                };
+            };
+        };
+    };
+    suppliers_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this supplier. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    suppliers_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this supplier. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedSupplierRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedSupplierRequest"];
+                "multipart/form-data": components["schemas"]["PatchedSupplierRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Supplier"];
                 };
             };
         };
