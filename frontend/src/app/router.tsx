@@ -4,6 +4,7 @@ import ActivityPage from "@/features/activity/ActivityPage";
 import LoginPage from "@/features/auth/LoginPage";
 import DashboardPage from "@/features/dashboard/DashboardPage";
 import PlaceholderPage from "@/features/misc/PlaceholderPage";
+import POSPage from "@/features/pos/POSPage";
 import ProductsPage from "@/features/products/ProductsPage";
 import SettingsPage from "@/features/settings/SettingsPage";
 
@@ -27,7 +28,7 @@ export function AppRouter() {
           path="pos"
           element={
             <RoleGate allow={["owner", "cashier"]}>
-              <PlaceholderPage title="Point of Sale" phase={2} />
+              <POSPage />
             </RoleGate>
           }
         />

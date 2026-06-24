@@ -45,6 +45,7 @@ export interface Shop {
   phone: string;
   my_role: RoleName | null;
   currency: string;
+  tax_rate: string;
   created_at: string;
 }
 
@@ -128,6 +129,85 @@ export interface InventoryTransaction {
   user_email: string | null;
   notes: string;
   created_at: string;
+}
+
+export type PaymentMethod = "cash" | "bank" | "mobile_money";
+
+export interface SaleItemInput {
+  product: string;
+  quantity: number;
+  unit_price?: number;
+}
+
+export interface PaymentInput {
+  method: PaymentMethod;
+  amount: number;
+}
+
+export interface SalePayload {
+  client_uuid: string;
+  items: SaleItemInput[];
+  payments: PaymentInput[];
+  discount: number;
+  tax: number;
+  notes?: string;
+}
+
+export interface SaleItem {
+  id: string;
+  product: string;
+  name_snapshot: string;
+  sku_snapshot: string;
+  unit_price_snapshot: number;
+  quantity: number;
+  line_total: number;
+}
+
+export interface SalePayment {
+  id: string;
+  method: PaymentMethod;
+  amount: number;
+  received_at: string;
+}
+
+export interface Sale {
+  id: string;
+  client_uuid: string;
+  cashier: string;
+  cashier_email: string | null;
+  subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
+  status: "completed" | "voided";
+  notes: string;
+  amount_paid: number;
+  change: number;
+  items: SaleItem[];
+  payments: SalePayment[];
+  voided_at: string | null;
+  created_at: string;
+}
+
+/**
+ * Normalised receipt shape used by the printable component. Built either from a
+ * server response or, for an offline sale, from the local cart snapshot.
+ */
+export interface ReceiptData {
+  shop_name: string;
+  shop_address?: string;
+  cashier_name: string;
+  currency: string;
+  receipt_footer?: string;
+  created_at: string;
+  items: { name: string; quantity: number; unit_price: number; line_total: number }[];
+  subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
+  amount_paid: number;
+  change: number;
+  offline: boolean;
 }
 
 export interface Paginated<T> {

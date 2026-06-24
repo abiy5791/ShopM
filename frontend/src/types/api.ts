@@ -324,6 +324,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sales": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description POS sales. Create is idempotent on client_uuid; void is owner-only. */
+        get: operations["sales_list"];
+        put?: never;
+        /** @description POS sales. Create is idempotent on client_uuid; void is owner-only. */
+        post: operations["sales_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sales/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description POS sales. Create is idempotent on client_uuid; void is owner-only. */
+        get: operations["sales_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sales/{id}/receipt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description POS sales. Create is idempotent on client_uuid; void is owner-only. */
+        get: operations["sales_receipt_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sales/{id}/void": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description POS sales. Create is idempotent on client_uuid; void is owner-only. */
+        post: operations["sales_void_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings": {
         parameters: {
             query?: never;
@@ -515,6 +584,13 @@ export interface components {
             readonly is_staff: boolean;
             readonly memberships: string;
         };
+        /**
+         * @description * `cash` - Cash
+         *     * `bank` - Bank
+         *     * `mobile_money` - Mobile money
+         * @enum {string}
+         */
+        MethodEnum: "cash" | "bank" | "mobile_money";
         PaginatedActivityLogList: {
             /** @example 123 */
             count: number;
@@ -575,6 +651,21 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["Product"][];
         };
+        PaginatedSaleList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["Sale"][];
+        };
         PaginatedShopList: {
             /** @example 123 */
             count: number;
@@ -623,7 +714,7 @@ export interface components {
             unit?: string;
             /** Format: int64 */
             min_stock_alert?: number;
-            status?: components["schemas"]["StatusEnum"];
+            status?: components["schemas"]["ProductStatusEnum"];
         };
         PatchedShopSettingsRequest: {
             currency?: string;
@@ -642,6 +733,18 @@ export interface components {
             phone?: string;
             address?: string;
             notes?: string;
+        };
+        Payment: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly method: components["schemas"]["MethodEnum"];
+            readonly amount: number;
+            /** Format: date-time */
+            readonly received_at: string;
+        };
+        PaymentInputRequest: {
+            method: components["schemas"]["MethodEnum"];
+            amount: number;
         };
         Product: {
             /** Format: uuid */
@@ -662,7 +765,7 @@ export interface components {
             unit?: string;
             /** Format: int64 */
             min_stock_alert?: number;
-            status?: components["schemas"]["StatusEnum"];
+            status?: components["schemas"]["ProductStatusEnum"];
             readonly stock_cached: number;
             readonly is_low_stock: boolean;
             /** Format: date-time */
@@ -685,7 +788,87 @@ export interface components {
             unit?: string;
             /** Format: int64 */
             min_stock_alert?: number;
-            status?: components["schemas"]["StatusEnum"];
+            status?: components["schemas"]["ProductStatusEnum"];
+        };
+        /**
+         * @description * `active` - Active
+         *     * `inactive` - Inactive
+         * @enum {string}
+         */
+        ProductStatusEnum: "active" | "inactive";
+        /** @description Flattened, display-ready payload for printing (plan §11 Phase 2). */
+        Receipt: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly shop_name: string;
+            readonly shop_address: string;
+            readonly cashier_name: string;
+            readonly currency: string;
+            readonly receipt_footer: string;
+            readonly subtotal: number;
+            readonly discount: number;
+            readonly tax: number;
+            readonly total: number;
+            readonly status: components["schemas"]["Status676Enum"];
+            readonly amount_paid: number;
+            readonly change: number;
+            readonly items: components["schemas"]["SaleItem"][];
+            readonly payments: components["schemas"]["Payment"][];
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        Sale: {
+            /** Format: uuid */
+            readonly id: string;
+            /** Format: uuid */
+            readonly client_uuid: string;
+            /** Format: uuid */
+            readonly cashier: string;
+            /** Format: email */
+            readonly cashier_email: string;
+            readonly subtotal: number;
+            readonly discount: number;
+            readonly tax: number;
+            readonly total: number;
+            readonly status: components["schemas"]["Status676Enum"];
+            readonly notes: string;
+            readonly amount_paid: number;
+            readonly change: number;
+            readonly items: components["schemas"]["SaleItem"][];
+            readonly payments: components["schemas"]["Payment"][];
+            /** Format: date-time */
+            readonly voided_at: string | null;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        SaleCreateRequest: {
+            /** Format: uuid */
+            client_uuid: string;
+            items: components["schemas"]["SaleItemInputRequest"][];
+            payments: components["schemas"]["PaymentInputRequest"][];
+            /** @default 0 */
+            discount: number;
+            /** @default 0 */
+            tax: number;
+            /** @default  */
+            notes: string;
+        };
+        SaleItem: {
+            /** Format: uuid */
+            readonly id: string;
+            /** Format: uuid */
+            readonly product: string;
+            readonly name_snapshot: string;
+            readonly sku_snapshot: string;
+            readonly unit_price_snapshot: number;
+            readonly quantity: number;
+            readonly line_total: number;
+        };
+        SaleItemInputRequest: {
+            /** Format: uuid */
+            product: string;
+            quantity: number;
+            unit_price?: number;
         };
         Shop: {
             /** Format: uuid */
@@ -695,6 +878,7 @@ export interface components {
             readonly phone: string;
             readonly my_role: string | null;
             readonly currency: string;
+            readonly tax_rate: string;
             /** Format: date-time */
             readonly created_at: string;
         };
@@ -713,11 +897,11 @@ export interface components {
             readonly updated_at: string;
         };
         /**
-         * @description * `active` - Active
-         *     * `inactive` - Inactive
+         * @description * `completed` - Completed
+         *     * `voided` - Voided
          * @enum {string}
          */
-        StatusEnum: "active" | "inactive";
+        Status676Enum: "completed" | "voided";
         /** @description Input for POST /inventory/adjust — a manual, signed stock movement. */
         StockAdjustmentRequest: {
             /** Format: uuid */
@@ -1377,6 +1561,137 @@ export interface operations {
                 };
                 content: {
                     "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    sales_list: {
+        parameters: {
+            query?: {
+                cashier?: string;
+                /** @description Which field to use when ordering the results. */
+                ordering?: string;
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+                /** @description A search term. */
+                search?: string;
+                /** @description * `completed` - Completed
+                 *     * `voided` - Voided */
+                status?: "completed" | "voided";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedSaleList"];
+                };
+            };
+        };
+    };
+    sales_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaleCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SaleCreateRequest"];
+                "multipart/form-data": components["schemas"]["SaleCreateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Sale"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Sale"];
+                };
+            };
+        };
+    };
+    sales_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this sale. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Sale"];
+                };
+            };
+        };
+    };
+    sales_receipt_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this sale. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Receipt"];
+                };
+            };
+        };
+    };
+    sales_void_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this sale. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Sale"];
                 };
             };
         };

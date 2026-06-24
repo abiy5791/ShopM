@@ -7,16 +7,22 @@ from .models import Shop, ShopSettings
 class ShopSerializer(serializers.ModelSerializer):
     my_role = serializers.SerializerMethodField()
     currency = serializers.SerializerMethodField()
+    tax_rate = serializers.SerializerMethodField()
 
     class Meta:
         model = Shop
-        fields = ["id", "name", "address", "phone", "my_role", "currency", "created_at"]
+        fields = ["id", "name", "address", "phone", "my_role", "currency", "tax_rate", "created_at"]
         read_only_fields = fields
 
     @extend_schema_field(serializers.CharField())
     def get_currency(self, shop):
         settings = getattr(shop, "settings", None)
         return settings.currency if settings else "USD"
+
+    @extend_schema_field(serializers.CharField())
+    def get_tax_rate(self, shop):
+        settings = getattr(shop, "settings", None)
+        return str(settings.tax_rate) if settings else "0"
 
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_my_role(self, shop):
