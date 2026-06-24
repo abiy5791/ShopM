@@ -71,6 +71,7 @@ class SaleViewSet(
                 discount=data["discount"],
                 tax=data["tax"],
                 notes=data["notes"],
+                customer=data.get("customer"),
             )
         except CheckoutError as exc:
             raise CheckoutFailed(str(exc)) from exc

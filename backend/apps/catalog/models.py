@@ -27,6 +27,9 @@ class Supplier(BaseModel):
     phone = models.CharField(max_length=32, blank=True)
     address = models.CharField(max_length=512, blank=True)
     notes = models.TextField(blank=True)
+    # Outstanding payable, derived from purchases (Σ total − Σ amount_paid). Kept
+    # in sync transactionally on purchase creation (plan §3.3, mirrors customer credit).
+    payable_cached = MoneyField(default=0)
 
     class Meta:
         ordering = ["name"]

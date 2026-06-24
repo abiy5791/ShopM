@@ -13,8 +13,8 @@ class CategorySerializer(serializers.ModelSerializer):
 class SupplierSerializer(serializers.ModelSerializer):
     class Meta:
         model = Supplier
-        fields = ["id", "name", "phone", "address", "notes", "created_at"]
-        read_only_fields = ["id", "created_at"]
+        fields = ["id", "name", "phone", "address", "notes", "payable_cached", "created_at"]
+        read_only_fields = ["id", "payable_cached", "created_at"]
 
 
 class ProductSerializer(serializers.ModelSerializer):

@@ -39,6 +39,7 @@ export function PaymentDialog({
   total,
   currency,
   submitting,
+  allowCredit = false,
   onConfirm,
 }: {
   open: boolean;
@@ -46,6 +47,9 @@ export function PaymentDialog({
   total: number;
   currency: string;
   submitting: boolean;
+  /** When true (a customer is attached), underpayment is allowed and the
+   *  remaining amount becomes credit. */
+  allowCredit?: boolean;
   onConfirm: (payments: PaymentInput[]) => void;
 }) {
   const [lines, setLines] = useState<Line[]>([
@@ -58,7 +62,7 @@ export function PaymentDialog({
   );
   const change = Math.max(0, paid - total);
   const remaining = Math.max(0, total - paid);
-  const canConfirm = paid >= total && total >= 0;
+  const canConfirm = total >= 0 && (allowCredit || paid >= total);
 
   function update(i: number, patch: Partial<Line>) {
     setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
@@ -132,8 +136,13 @@ export function PaymentDialog({
               <span className="font-mono tabular-nums">{formatMoney(paid, currency)}</span>
             </div>
             {remaining > 0 ? (
-              <div className="flex justify-between text-destructive">
-                <span>Remaining</span>
+              <div
+                className={
+                  "flex justify-between " +
+                  (allowCredit ? "text-secondary-foreground" : "text-destructive")
+                }
+              >
+                <span>{allowCredit ? "On credit" : "Remaining"}</span>
                 <span className="font-mono tabular-nums">{formatMoney(remaining, currency)}</span>
               </div>
             ) : (

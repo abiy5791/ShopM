@@ -20,7 +20,9 @@ class CheckoutError(Exception):
     """Raised for unrecoverable checkout problems (e.g. underpayment)."""
 
 
-def _build_sale(*, shop, cashier, client_uuid, items, payments, discount, tax, notes) -> Sale:
+def _build_sale(
+    *, shop, cashier, client_uuid, items, payments, discount, tax, notes, customer=None
+) -> Sale:
     subtotal = 0
     line_rows = []
     for item in items:
@@ -39,13 +41,15 @@ def _build_sale(*, shop, cashier, client_uuid, items, payments, discount, tax, n
         raise CheckoutError("Total cannot be negative.")
 
     paid = sum(p["amount"] for p in payments)
-    if paid < total:
-        raise CheckoutError("Payments do not cover the sale total.")
+    if paid < total and customer is None:
+        # Underpayment is only allowed as credit, which requires a customer.
+        raise CheckoutError("Payments do not cover the sale total (no customer for credit).")
 
     sale = Sale.objects.create(
         shop=shop,
         client_uuid=client_uuid,
         cashier=cashier,
+        customer=customer,
         subtotal=subtotal,
         discount=discount,
         tax=tax,
@@ -73,6 +77,7 @@ def _build_sale(*, shop, cashier, client_uuid, items, payments, discount, tax, n
             Payment(
                 shop=shop,
                 sale=sale,
+                customer=customer,
                 method=p["method"],
                 amount=p["amount"],
                 user=cashier,
@@ -96,7 +101,7 @@ def _build_sale(*, shop, cashier, client_uuid, items, payments, discount, tax, n
 
 
 def create_sale(
-    *, shop, cashier, client_uuid, items, payments, discount=0, tax=0, notes=""
+    *, shop, cashier, client_uuid, items, payments, discount=0, tax=0, notes="", customer=None
 ) -> tuple[Sale, bool]:
     """Idempotent checkout. Returns (sale, created). A replay of the same
     ``client_uuid`` returns the original sale with created=False (plan §3.4)."""
@@ -115,7 +120,12 @@ def create_sale(
                 discount=discount,
                 tax=tax,
                 notes=notes,
+                customer=customer,
             )
+            if customer is not None:
+                from apps.customers.services import recompute_customer_balance
+
+                recompute_customer_balance(customer)
         return sale, True
     except IntegrityError:
         # A concurrent request with the same client_uuid won the race.
@@ -144,4 +154,9 @@ def void_sale(sale: Sale, *, user) -> Sale:
     sale.voided_at = timezone.now()
     sale.voided_by = user
     sale.save(update_fields=["status", "voided_at", "voided_by", "updated_at"])
+
+    if sale.customer_id is not None:
+        from apps.customers.services import recompute_customer_balance
+
+        recompute_customer_balance(sale.customer)
     return sale

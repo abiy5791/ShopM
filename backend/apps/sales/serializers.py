@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from apps.catalog.models import Product
+from apps.customers.models import Customer
 
 from .models import Payment, Sale, SaleItem
 
@@ -23,6 +24,9 @@ class SaleCreateSerializer(serializers.Serializer):
     client_uuid = serializers.UUIDField()
     items = SaleItemInputSerializer(many=True)
     payments = PaymentInputSerializer(many=True)
+    customer = serializers.PrimaryKeyRelatedField(
+        queryset=Customer.objects.all(), required=False, allow_null=True
+    )
     discount = serializers.IntegerField(min_value=0, default=0)
     tax = serializers.IntegerField(min_value=0, default=0)
     notes = serializers.CharField(required=False, allow_blank=True, default="")
@@ -38,9 +42,15 @@ class SaleCreateSerializer(serializers.Serializer):
         return items
 
     def validate_payments(self, payments):
-        if not payments:
-            raise serializers.ValidationError("A sale must have at least one payment.")
+        # Payments may be empty for a fully-on-credit sale (a customer is required,
+        # enforced in the checkout service).
         return payments
+
+    def validate_customer(self, customer):
+        shop = self.context.get("active_shop")
+        if customer is not None and shop is not None and customer.shop_id != shop.id:
+            raise serializers.ValidationError("Customer not found in the active shop.")
+        return customer
 
 
 # ---------------------------------------------------------------- output
@@ -70,6 +80,7 @@ class SaleSerializer(serializers.ModelSerializer):
     items = SaleItemSerializer(many=True, read_only=True)
     payments = PaymentSerializer(many=True, read_only=True)
     cashier_email = serializers.EmailField(source="cashier.email", read_only=True, default=None)
+    customer_name = serializers.CharField(source="customer.name", read_only=True, default=None)
     amount_paid = serializers.SerializerMethodField()
     change = serializers.SerializerMethodField()
 
@@ -80,6 +91,8 @@ class SaleSerializer(serializers.ModelSerializer):
             "client_uuid",
             "cashier",
             "cashier_email",
+            "customer",
+            "customer_name",
             "subtotal",
             "discount",
             "tax",

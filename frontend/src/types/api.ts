@@ -148,6 +148,61 @@ export interface paths {
         patch: operations["categories_partial_update"];
         trace?: never;
     };
+    "/api/v1/customers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Customer CRUD — available to owner and cashier (plan §8). */
+        get: operations["customers_list"];
+        put?: never;
+        /** @description Customer CRUD — available to owner and cashier (plan §8). */
+        post: operations["customers_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Customer CRUD — available to owner and cashier (plan §8). */
+        get: operations["customers_retrieve"];
+        /** @description Customer CRUD — available to owner and cashier (plan §8). */
+        put: operations["customers_update"];
+        post?: never;
+        /** @description Customer CRUD — available to owner and cashier (plan §8). */
+        delete: operations["customers_destroy"];
+        options?: never;
+        head?: never;
+        /** @description Customer CRUD — available to owner and cashier (plan §8). */
+        patch: operations["customers_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/customers/{id}/ledger": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Outstanding balance + sale and payment history for a customer. */
+        get: operations["customers_ledger_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/expense-categories": {
         parameters: {
             query?: never;
@@ -287,6 +342,23 @@ export interface paths {
         get: operations["me_retrieve"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description POST /payments — record a settlement against a customer's credit. */
+        post: operations["payments_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -642,6 +714,37 @@ export interface components {
         CategoryRequest: {
             name: string;
         };
+        Customer: {
+            /** Format: uuid */
+            readonly id: string;
+            name: string;
+            phone?: string;
+            address?: string;
+            notes?: string;
+            readonly credit_balance_cached: number;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        /**
+         * @description * `cash` - cash
+         *     * `bank` - bank
+         *     * `mobile_money` - mobile_money
+         * @enum {string}
+         */
+        CustomerPaymentMethodEnum: "cash" | "bank" | "mobile_money";
+        /** @description Input for POST /payments — settle a customer's credit. */
+        CustomerPaymentRequest: {
+            /** Format: uuid */
+            customer: string;
+            method: components["schemas"]["CustomerPaymentMethodEnum"];
+            amount: number;
+        };
+        CustomerRequest: {
+            name: string;
+            phone?: string;
+            address?: string;
+            notes?: string;
+        };
         Expense: {
             /** Format: uuid */
             readonly id: string;
@@ -737,7 +840,7 @@ export interface components {
          *     * `mobile_money` - Mobile money
          * @enum {string}
          */
-        MethodEnum: "cash" | "bank" | "mobile_money";
+        MethodB20Enum: "cash" | "bank" | "mobile_money";
         PaginatedActivityLogList: {
             /** @example 123 */
             count: number;
@@ -767,6 +870,21 @@ export interface components {
              */
             previous?: string | null;
             results: components["schemas"]["Category"][];
+        };
+        PaginatedCustomerList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["Customer"][];
         };
         PaginatedExpenseCategoryList: {
             /** @example 123 */
@@ -891,6 +1009,12 @@ export interface components {
         PatchedCategoryRequest: {
             name?: string;
         };
+        PatchedCustomerRequest: {
+            name?: string;
+            phone?: string;
+            address?: string;
+            notes?: string;
+        };
         PatchedExpenseCategoryRequest: {
             name?: string;
         };
@@ -943,13 +1067,13 @@ export interface components {
         Payment: {
             /** Format: uuid */
             readonly id: string;
-            readonly method: components["schemas"]["MethodEnum"];
+            readonly method: components["schemas"]["MethodB20Enum"];
             readonly amount: number;
             /** Format: date-time */
             readonly received_at: string;
         };
         PaymentInputRequest: {
-            method: components["schemas"]["MethodEnum"];
+            method: components["schemas"]["MethodB20Enum"];
             amount: number;
         };
         /**
@@ -1083,6 +1207,9 @@ export interface components {
             readonly cashier: string;
             /** Format: email */
             readonly cashier_email: string;
+            /** Format: uuid */
+            readonly customer: string | null;
+            readonly customer_name: string;
             readonly subtotal: number;
             readonly discount: number;
             readonly tax: number;
@@ -1103,6 +1230,8 @@ export interface components {
             client_uuid: string;
             items: components["schemas"]["SaleItemInputRequest"][];
             payments: components["schemas"]["PaymentInputRequest"][];
+            /** Format: uuid */
+            customer?: string | null;
             /** @default 0 */
             discount: number;
             /** @default 0 */
@@ -1184,6 +1313,7 @@ export interface components {
             phone?: string;
             address?: string;
             notes?: string;
+            readonly payable_cached: number;
             /** Format: date-time */
             readonly created_at: string;
         };
@@ -1491,6 +1621,182 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Category"];
+                };
+            };
+        };
+    };
+    customers_list: {
+        parameters: {
+            query?: {
+                /** @description Which field to use when ordering the results. */
+                ordering?: string;
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+                /** @description A search term. */
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedCustomerList"];
+                };
+            };
+        };
+    };
+    customers_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["CustomerRequest"];
+                "multipart/form-data": components["schemas"]["CustomerRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Customer"];
+                };
+            };
+        };
+    };
+    customers_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this customer. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Customer"];
+                };
+            };
+        };
+    };
+    customers_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this customer. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["CustomerRequest"];
+                "multipart/form-data": components["schemas"]["CustomerRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Customer"];
+                };
+            };
+        };
+    };
+    customers_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this customer. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    customers_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this customer. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedCustomerRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedCustomerRequest"];
+                "multipart/form-data": components["schemas"]["PatchedCustomerRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Customer"];
+                };
+            };
+        };
+    };
+    customers_ledger_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this customer. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };
@@ -1900,6 +2206,33 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Me"];
+                };
+            };
+        };
+    };
+    payments_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerPaymentRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["CustomerPaymentRequest"];
+                "multipart/form-data": components["schemas"]["CustomerPaymentRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };

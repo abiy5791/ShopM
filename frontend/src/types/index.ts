@@ -151,6 +151,7 @@ export interface SalePayload {
   discount: number;
   tax: number;
   notes?: string;
+  customer?: string;
 }
 
 export interface SaleItem {
@@ -250,6 +251,29 @@ export interface Expense {
   description: string;
   receipt_image_url: string | null;
   created_at: string;
+}
+
+export interface Customer {
+  id: string;
+  name: string;
+  phone: string;
+  address: string;
+  notes: string;
+  credit_balance_cached: number;
+  created_at: string;
+}
+
+export interface CustomerLedger {
+  customer_id: string;
+  balance: number;
+  sales: { id: string; total: number; status: string; created_at: string }[];
+  payments: {
+    id: string;
+    method: PaymentMethod;
+    amount: number;
+    sale: string | null;
+    received_at: string;
+  }[];
 }
 
 export interface Paginated<T> {

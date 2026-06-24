@@ -21,6 +21,14 @@ class Sale(BaseModel):
         on_delete=models.PROTECT,
         related_name="sales",
     )
+    # Optional customer; set when a sale is on credit (plan §3.3, §4).
+    customer = models.ForeignKey(
+        "customers.Customer",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="sales",
+    )
     # Money, all integer minor units (plan §3.5).
     subtotal = MoneyField(default=0)
     discount = MoneyField(default=0)
@@ -80,6 +88,14 @@ class Payment(BaseModel):
     shop = models.ForeignKey("shops.Shop", on_delete=models.CASCADE, related_name="payments")
     sale = models.ForeignKey(
         Sale, on_delete=models.CASCADE, null=True, blank=True, related_name="payments"
+    )
+    # Set for credit-sale payments and standalone settlements (plan §3.3).
+    customer = models.ForeignKey(
+        "customers.Customer",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="payments",
     )
     method = models.CharField(max_length=16, choices=Method.choices)
     amount = MoneyField()

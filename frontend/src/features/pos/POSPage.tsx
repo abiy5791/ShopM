@@ -14,7 +14,15 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useCustomers } from "@/features/customers/api";
 import { useAuthStore } from "@/lib/auth";
 import { formatMoney, parseMoney } from "@/lib/money";
 import type { PaymentInput, ReceiptData, SalePayload } from "@/types";
@@ -39,6 +47,9 @@ export default function POSPage() {
   useEffect(() => {
     ensureShop(shopId);
   }, [shopId, ensureShop]);
+
+  const customers = useCustomers();
+  const [customerId, setCustomerId] = useState("none");
 
   const [query, setQuery] = useState("");
   const [discountInput, setDiscountInput] = useState("");
@@ -88,6 +99,7 @@ export default function POSPage() {
       payments,
       discount,
       tax,
+      ...(customerId !== "none" ? { customer: customerId } : {}),
     };
     const amountPaid = payments.reduce((s, p) => s + p.amount, 0);
     const localReceipt: ReceiptData = {
@@ -121,6 +133,7 @@ export default function POSPage() {
       setPayOpen(false);
       cart.clear();
       setDiscountInput("");
+      setCustomerId("none");
       toast.success(result.synced ? "Sale completed" : "Saved offline — will sync when online");
     } catch {
       toast.error("Checkout failed. Please review and try again.");
@@ -196,7 +209,22 @@ export default function POSPage() {
 
       {/* Cart */}
       <Card className="flex w-full flex-col lg:w-[380px]">
-        <div className="border-b px-4 py-3 text-sm font-semibold">Current sale</div>
+        <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
+          <span className="text-sm font-semibold">Current sale</span>
+          <Select value={customerId} onValueChange={setCustomerId}>
+            <SelectTrigger className="h-8 w-44">
+              <SelectValue placeholder="Walk-in" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Walk-in customer</SelectItem>
+              {(customers.data?.results ?? []).map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         <div className="flex-1 overflow-y-auto px-2 py-2">
           {cart.lines.length === 0 ? (
@@ -271,6 +299,7 @@ export default function POSPage() {
         total={total}
         currency={currency}
         submitting={submitting}
+        allowCredit={customerId !== "none"}
         onConfirm={handleConfirm}
       />
 

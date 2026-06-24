@@ -2,6 +2,7 @@ import { Route, Routes } from "react-router-dom";
 
 import ActivityPage from "@/features/activity/ActivityPage";
 import LoginPage from "@/features/auth/LoginPage";
+import CustomersPage from "@/features/customers/CustomersPage";
 import DashboardPage from "@/features/dashboard/DashboardPage";
 import ExpensesPage from "@/features/expenses/ExpensesPage";
 import PlaceholderPage from "@/features/misc/PlaceholderPage";
@@ -35,6 +36,14 @@ export function AppRouter() {
           }
         />
         <Route path="products" element={<ProductsPage />} />
+        <Route
+          path="customers"
+          element={
+            <RoleGate allow={["owner", "cashier"]}>
+              <CustomersPage />
+            </RoleGate>
+          }
+        />
         <Route
           path="purchases"
           element={
