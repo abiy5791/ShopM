@@ -2,9 +2,11 @@ import {
   BarChart3,
   LayoutDashboard,
   Package,
+  Receipt,
   ScanLine,
   ScrollText,
   Settings,
+  Truck,
   type LucideIcon,
 } from "lucide-react";
 
@@ -24,6 +26,8 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, phase: 5 },
   { to: "/pos", label: "Point of Sale", icon: ScanLine, roles: ["owner", "cashier"], phase: 2 },
   { to: "/products", label: "Products", icon: Package, phase: 1 },
+  { to: "/purchases", label: "Purchases", icon: Truck, roles: ["owner"], phase: 3 },
+  { to: "/expenses", label: "Expenses", icon: Receipt, roles: ["owner"], phase: 3 },
   { to: "/reports", label: "Reports", icon: BarChart3, roles: ["owner"], phase: 5 },
   { to: "/activity", label: "Activity", icon: ScrollText },
   { to: "/settings", label: "Settings", icon: Settings, roles: ["owner"], phase: 7 },

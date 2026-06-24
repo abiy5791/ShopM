@@ -210,6 +210,48 @@ export interface ReceiptData {
   offline: boolean;
 }
 
+export type PaymentStatus = "paid" | "partial" | "unpaid";
+
+export interface PurchaseItem {
+  id: string;
+  product: string;
+  product_name: string;
+  product_sku: string;
+  quantity: number;
+  unit_cost: number;
+  line_total: number;
+}
+
+export interface Purchase {
+  id: string;
+  supplier: string | null;
+  supplier_name: string | null;
+  total: number;
+  amount_paid: number;
+  payment_status: PaymentStatus;
+  date: string;
+  notes: string;
+  items: PurchaseItem[];
+  created_at: string;
+}
+
+export interface ExpenseCategory {
+  id: string;
+  name: string;
+  created_at: string;
+}
+
+export interface Expense {
+  id: string;
+  category: string | null;
+  category_name: string | null;
+  amount: number;
+  date: string;
+  description: string;
+  receipt_image_url: string | null;
+  created_at: string;
+}
+
 export interface Paginated<T> {
   count: number;
   next: string | null;

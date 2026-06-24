@@ -12,6 +12,7 @@ from django.db import transaction
 from apps.accounts.models import Role
 from apps.activity.services import log_activity
 from apps.catalog.models import Category, Product, Supplier
+from apps.expenses.models import ExpenseCategory
 from apps.inventory.models import InventoryTransaction
 from apps.inventory.services import record_transaction
 from apps.shops.models import Shop, ShopMembership, ShopSettings
@@ -19,6 +20,16 @@ from apps.shops.models import Shop, ShopMembership, ShopSettings
 User = get_user_model()
 
 DEMO_PASSWORD = "password123"
+
+EXPENSE_CATEGORIES = [
+    "Rent",
+    "Salary",
+    "Electricity",
+    "Internet",
+    "Transport",
+    "Maintenance",
+    "Misc",
+]
 
 # (name, category, sku, selling_price (minor units), min_alert, opening_stock)
 DEMO_PRODUCTS = [
@@ -75,6 +86,8 @@ class Command(BaseCommand):
             )
 
             self._seed_catalog(shop, owner)
+            for name in EXPENSE_CATEGORIES:
+                ExpenseCategory.objects.get_or_create(shop=shop, name=name)
 
         self.stdout.write(self.style.SUCCESS("Seed complete."))
         self.stdout.write(f"  Owner:    owner@shopm.local / {DEMO_PASSWORD}")

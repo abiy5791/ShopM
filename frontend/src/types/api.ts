@@ -148,6 +148,82 @@ export interface paths {
         patch: operations["categories_partial_update"];
         trace?: never;
     };
+    "/api/v1/expense-categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Owner-managed expense categories. */
+        get: operations["expense_categories_list"];
+        put?: never;
+        /** @description Owner-managed expense categories. */
+        post: operations["expense_categories_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/expense-categories/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Owner-managed expense categories. */
+        get: operations["expense_categories_retrieve"];
+        /** @description Owner-managed expense categories. */
+        put: operations["expense_categories_update"];
+        post?: never;
+        /** @description Owner-managed expense categories. */
+        delete: operations["expense_categories_destroy"];
+        options?: never;
+        head?: never;
+        /** @description Owner-managed expense categories. */
+        patch: operations["expense_categories_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/expenses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Shop expenses with optional receipt image. Owner only (plan §8). */
+        get: operations["expenses_list"];
+        put?: never;
+        /** @description Shop expenses with optional receipt image. Owner only (plan §8). */
+        post: operations["expenses_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/expenses/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Shop expenses with optional receipt image. Owner only (plan §8). */
+        get: operations["expenses_retrieve"];
+        /** @description Shop expenses with optional receipt image. Owner only (plan §8). */
+        put: operations["expenses_update"];
+        post?: never;
+        /** @description Shop expenses with optional receipt image. Owner only (plan §8). */
+        delete: operations["expenses_destroy"];
+        options?: never;
+        head?: never;
+        /** @description Shop expenses with optional receipt image. Owner only (plan §8). */
+        patch: operations["expenses_partial_update"];
+        trace?: never;
+    };
     "/api/v1/inventory/adjust": {
         parameters: {
             query?: never;
@@ -318,6 +394,41 @@ export interface paths {
         put?: never;
         /** @description Import/upsert products from an .xlsx file (keyed on SKU). Owner only. */
         post: operations["products_import_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/purchases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Stock purchases. Owner only (cashiers are denied — plan §8). */
+        get: operations["purchases_list"];
+        put?: never;
+        /** @description Stock purchases. Owner only (cashiers are denied — plan §8). */
+        post: operations["purchases_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/purchases/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Stock purchases. Owner only (cashiers are denied — plan §8). */
+        get: operations["purchases_retrieve"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -531,6 +642,42 @@ export interface components {
         CategoryRequest: {
             name: string;
         };
+        Expense: {
+            /** Format: uuid */
+            readonly id: string;
+            /** Format: uuid */
+            category?: string | null;
+            readonly category_name: string;
+            /** Format: int64 */
+            amount: number;
+            /** Format: date */
+            date: string;
+            description?: string;
+            readonly receipt_image_url: string;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        ExpenseCategory: {
+            /** Format: uuid */
+            readonly id: string;
+            name: string;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        ExpenseCategoryRequest: {
+            name: string;
+        };
+        ExpenseRequest: {
+            /** Format: uuid */
+            category?: string | null;
+            /** Format: int64 */
+            amount: number;
+            /** Format: date */
+            date: string;
+            description?: string;
+            /** Format: binary */
+            receipt_image?: string | null;
+        };
         InventoryTransaction: {
             /** Format: uuid */
             readonly id: string;
@@ -621,6 +768,36 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["Category"][];
         };
+        PaginatedExpenseCategoryList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["ExpenseCategory"][];
+        };
+        PaginatedExpenseList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["Expense"][];
+        };
         PaginatedInventoryTransactionList: {
             /** @example 123 */
             count: number;
@@ -650,6 +827,21 @@ export interface components {
              */
             previous?: string | null;
             results: components["schemas"]["Product"][];
+        };
+        PaginatedPurchaseList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["Purchase"][];
         };
         PaginatedSaleList: {
             /** @example 123 */
@@ -699,6 +891,20 @@ export interface components {
         PatchedCategoryRequest: {
             name?: string;
         };
+        PatchedExpenseCategoryRequest: {
+            name?: string;
+        };
+        PatchedExpenseRequest: {
+            /** Format: uuid */
+            category?: string | null;
+            /** Format: int64 */
+            amount?: number;
+            /** Format: date */
+            date?: string;
+            description?: string;
+            /** Format: binary */
+            receipt_image?: string | null;
+        };
         PatchedProductRequest: {
             name?: string;
             sku?: string;
@@ -746,6 +952,13 @@ export interface components {
             method: components["schemas"]["MethodEnum"];
             amount: number;
         };
+        /**
+         * @description * `paid` - Paid
+         *     * `partial` - Partial
+         *     * `unpaid` - Unpaid
+         * @enum {string}
+         */
+        PaymentStatusEnum: "paid" | "partial" | "unpaid";
         Product: {
             /** Format: uuid */
             readonly id: string;
@@ -796,6 +1009,50 @@ export interface components {
          * @enum {string}
          */
         ProductStatusEnum: "active" | "inactive";
+        Purchase: {
+            /** Format: uuid */
+            readonly id: string;
+            /** Format: uuid */
+            readonly supplier: string | null;
+            readonly supplier_name: string;
+            readonly total: number;
+            readonly amount_paid: number;
+            readonly payment_status: components["schemas"]["PaymentStatusEnum"];
+            /** Format: date */
+            readonly date: string;
+            readonly notes: string;
+            readonly items: components["schemas"]["PurchaseItem"][];
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        PurchaseCreateRequest: {
+            /** Format: uuid */
+            supplier?: string | null;
+            items: components["schemas"]["PurchaseItemInputRequest"][];
+            /** @default 0 */
+            amount_paid: number;
+            /** Format: date */
+            date?: string | null;
+            /** @default  */
+            notes: string;
+        };
+        PurchaseItem: {
+            /** Format: uuid */
+            readonly id: string;
+            /** Format: uuid */
+            readonly product: string;
+            readonly product_name: string;
+            readonly product_sku: string;
+            readonly quantity: number;
+            readonly unit_cost: number;
+            readonly line_total: number;
+        };
+        PurchaseItemInputRequest: {
+            /** Format: uuid */
+            product: string;
+            quantity: number;
+            unit_cost: number;
+        };
         /** @description Flattened, display-ready payload for printing (plan §11 Phase 2). */
         Receipt: {
             /** Format: uuid */
@@ -1238,6 +1495,311 @@ export interface operations {
             };
         };
     };
+    expense_categories_list: {
+        parameters: {
+            query?: {
+                /** @description Which field to use when ordering the results. */
+                ordering?: string;
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+                /** @description A search term. */
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedExpenseCategoryList"];
+                };
+            };
+        };
+    };
+    expense_categories_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExpenseCategoryRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ExpenseCategoryRequest"];
+                "multipart/form-data": components["schemas"]["ExpenseCategoryRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseCategory"];
+                };
+            };
+        };
+    };
+    expense_categories_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this expense category. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseCategory"];
+                };
+            };
+        };
+    };
+    expense_categories_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this expense category. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExpenseCategoryRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ExpenseCategoryRequest"];
+                "multipart/form-data": components["schemas"]["ExpenseCategoryRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseCategory"];
+                };
+            };
+        };
+    };
+    expense_categories_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this expense category. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    expense_categories_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this expense category. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedExpenseCategoryRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedExpenseCategoryRequest"];
+                "multipart/form-data": components["schemas"]["PatchedExpenseCategoryRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseCategory"];
+                };
+            };
+        };
+    };
+    expenses_list: {
+        parameters: {
+            query?: {
+                category?: string;
+                /** @description Which field to use when ordering the results. */
+                ordering?: string;
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+                /** @description A search term. */
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedExpenseList"];
+                };
+            };
+        };
+    };
+    expenses_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["ExpenseRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ExpenseRequest"];
+                "application/json": components["schemas"]["ExpenseRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Expense"];
+                };
+            };
+        };
+    };
+    expenses_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this expense. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Expense"];
+                };
+            };
+        };
+    };
+    expenses_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this expense. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["ExpenseRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ExpenseRequest"];
+                "application/json": components["schemas"]["ExpenseRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Expense"];
+                };
+            };
+        };
+    };
+    expenses_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this expense. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    expenses_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this expense. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": components["schemas"]["PatchedExpenseRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedExpenseRequest"];
+                "application/json": components["schemas"]["PatchedExpenseRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Expense"];
+                };
+            };
+        };
+    };
     inventory_adjust_create: {
         parameters: {
             query?: never;
@@ -1561,6 +2123,86 @@ export interface operations {
                 };
                 content: {
                     "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    purchases_list: {
+        parameters: {
+            query?: {
+                /** @description Which field to use when ordering the results. */
+                ordering?: string;
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+                /** @description * `paid` - Paid
+                 *     * `partial` - Partial
+                 *     * `unpaid` - Unpaid */
+                payment_status?: "paid" | "partial" | "unpaid";
+                /** @description A search term. */
+                search?: string;
+                supplier?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedPurchaseList"];
+                };
+            };
+        };
+    };
+    purchases_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PurchaseCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PurchaseCreateRequest"];
+                "multipart/form-data": components["schemas"]["PurchaseCreateRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Purchase"];
+                };
+            };
+        };
+    };
+    purchases_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this purchase. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Purchase"];
                 };
             };
         };
