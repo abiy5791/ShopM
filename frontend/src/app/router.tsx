@@ -5,10 +5,10 @@ import LoginPage from "@/features/auth/LoginPage";
 import CustomersPage from "@/features/customers/CustomersPage";
 import DashboardPage from "@/features/dashboard/DashboardPage";
 import ExpensesPage from "@/features/expenses/ExpensesPage";
-import PlaceholderPage from "@/features/misc/PlaceholderPage";
 import POSPage from "@/features/pos/POSPage";
 import ProductsPage from "@/features/products/ProductsPage";
 import PurchasesPage from "@/features/purchases/PurchasesPage";
+import ReportsPage from "@/features/reports/ReportsPage";
 import SettingsPage from "@/features/settings/SettingsPage";
 
 import { RequireAuth, RoleGate } from "./guards";
@@ -64,7 +64,7 @@ export function AppRouter() {
           path="reports"
           element={
             <RoleGate allow={["owner"]}>
-              <PlaceholderPage title="Reports" phase={5} />
+              <ReportsPage />
             </RoleGate>
           }
         />

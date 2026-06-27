@@ -203,6 +203,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description GET /dashboard — today's headline numbers for the active shop. Owner only. */
+        get: operations["dashboard_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/expense-categories": {
         parameters: {
             query?: never;
@@ -507,6 +524,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reports/cashflow": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Financial reports for the active shop. Owner only (plan §8). */
+        get: operations["reports_cashflow_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/inventory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Financial reports for the active shop. Owner only (plan §8). */
+        get: operations["reports_inventory_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/profit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Financial reports for the active shop. Owner only (plan §8). */
+        get: operations["reports_profit_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/sales": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Financial reports for the active shop. Owner only (plan §8). */
+        get: operations["reports_sales_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sales": {
         parameters: {
             query?: never;
@@ -744,6 +829,21 @@ export interface components {
             phone?: string;
             address?: string;
             notes?: string;
+        };
+        Dashboard: {
+            currency: string;
+            today: {
+                [key: string]: unknown;
+            };
+            low_stock_count: number;
+            total_products: number;
+            cash_balance: number;
+            best_sellers: {
+                [key: string]: unknown;
+            }[];
+            recent_sales: {
+                [key: string]: unknown;
+            }[];
         };
         Expense: {
             /** Format: uuid */
@@ -1197,6 +1297,20 @@ export interface components {
             readonly payments: components["schemas"]["Payment"][];
             /** Format: date-time */
             readonly created_at: string;
+        };
+        Report: {
+            key: string;
+            title: string;
+            currency: string;
+            summary: components["schemas"]["ReportSummaryItem"][];
+            columns: string[];
+            rows: unknown[][];
+            money_columns: number[];
+        };
+        ReportSummaryItem: {
+            label: string;
+            value: number;
+            money: boolean;
         };
         Sale: {
             /** Format: uuid */
@@ -1797,6 +1911,25 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+        };
+    };
+    dashboard_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Dashboard"];
                 };
             };
         };
@@ -2536,6 +2669,103 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Purchase"];
+                };
+            };
+        };
+    };
+    reports_cashflow_retrieve: {
+        parameters: {
+            query?: {
+                /** @description YYYY-MM-DD */
+                end?: string;
+                export?: "pdf" | "xlsx";
+                /** @description YYYY-MM-DD */
+                start?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Report"];
+                };
+            };
+        };
+    };
+    reports_inventory_retrieve: {
+        parameters: {
+            query?: {
+                export?: "pdf" | "xlsx";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Report"];
+                };
+            };
+        };
+    };
+    reports_profit_retrieve: {
+        parameters: {
+            query?: {
+                /** @description YYYY-MM-DD */
+                end?: string;
+                export?: "pdf" | "xlsx";
+                /** @description YYYY-MM-DD */
+                start?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Report"];
+                };
+            };
+        };
+    };
+    reports_sales_retrieve: {
+        parameters: {
+            query?: {
+                /** @description YYYY-MM-DD */
+                end?: string;
+                export?: "pdf" | "xlsx";
+                period?: "daily" | "monthly" | "weekly" | "yearly";
+                /** @description YYYY-MM-DD */
+                start?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Report"];
                 };
             };
         };

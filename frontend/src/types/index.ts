@@ -276,6 +276,38 @@ export interface CustomerLedger {
   }[];
 }
 
+export interface DashboardData {
+  currency: string;
+  today: {
+    sales_total: number;
+    sales_count: number;
+    expenses_total: number;
+    gross_profit: number;
+    net_profit: number;
+  };
+  low_stock_count: number;
+  total_products: number;
+  cash_balance: number;
+  best_sellers: { name: string; quantity: number }[];
+  recent_sales: { id: string; total: number; created_at: string }[];
+}
+
+export interface ReportSummaryItem {
+  label: string;
+  value: number;
+  money: boolean;
+}
+
+export interface ReportData {
+  key: string;
+  title: string;
+  currency: string;
+  summary: ReportSummaryItem[];
+  columns: string[];
+  rows: (string | number)[][];
+  money_columns: number[];
+}
+
 export interface Paginated<T> {
   count: number;
   next: string | null;
