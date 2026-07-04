@@ -4,6 +4,7 @@ from rest_framework.viewsets import ReadOnlyModelViewSet
 from apps.common.mixins import ShopScopedViewSetMixin
 from apps.common.permissions import ROLE_OWNER, ActiveShopRolePermission
 
+from .filters import ActivityLogFilter
 from .models import ActivityLog
 from .serializers import ActivityLogSerializer
 
@@ -15,7 +16,7 @@ class ActivityLogViewSet(ShopScopedViewSetMixin, ReadOnlyModelViewSet):
     serializer_class = ActivityLogSerializer
     queryset = ActivityLog.objects.select_related("user").all()
     permission_classes = [IsAuthenticated, ActiveShopRolePermission]
-    filterset_fields = ["action", "user", "level"]
+    filterset_class = ActivityLogFilter
     search_fields = ["action", "entity_type"]
     ordering_fields = ["created_at", "action"]
 

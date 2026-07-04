@@ -25,13 +25,18 @@ class LoginView(TokenObtainPairView):
         try:
             serializer.is_valid(raise_exception=True)
         except (AuthenticationFailed, TokenError):
+            email = request.data.get("email")
             log_activity(
                 user=None,
                 action="auth.login_failed",
                 entity_type="user",
-                metadata={"email": request.data.get("email")},
+                metadata={"email": email},
                 ip=ip,
             )
+            from apps.notifications.services import notify_failed_login
+
+            if email:
+                notify_failed_login(email, ip)
             raise
 
         user = serializer.user

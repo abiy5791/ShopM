@@ -357,6 +357,25 @@ export interface ShopComparison {
   shops: ShopComparisonRow[];
 }
 
+export type NotificationType =
+  | "low_stock"
+  | "out_of_stock"
+  | "large_expense"
+  | "large_void"
+  | "failed_login"
+  | "daily_summary";
+
+export interface AppNotification {
+  id: string;
+  type: NotificationType;
+  level: "info" | "warn" | "critical";
+  title: string;
+  payload: Record<string, unknown>;
+  read_at: string | null;
+  is_read: boolean;
+  created_at: string;
+}
+
 export interface Paginated<T> {
   count: number;
   next: string | null;

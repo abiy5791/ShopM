@@ -86,7 +86,9 @@ def _build_sale(
         ]
     )
 
-    # Decrement stock through the ledger (one row per line).
+    # Decrement stock through the ledger (one row per line), then check low stock.
+    from apps.notifications.services import notify_low_stock
+
     for product, quantity, _unit_price, _lt in line_rows:
         record_transaction(
             product=product,
@@ -96,6 +98,7 @@ def _build_sale(
             reference_type="sale",
             reference_id=str(sale.id),
         )
+        notify_low_stock(product)
 
     return sale
 
@@ -159,4 +162,8 @@ def void_sale(sale: Sale, *, user) -> Sale:
         from apps.customers.services import recompute_customer_balance
 
         recompute_customer_balance(sale.customer)
+
+    from apps.notifications.services import notify_large_void
+
+    notify_large_void(sale)
     return sale

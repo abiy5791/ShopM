@@ -53,6 +53,9 @@ class StockAdjustView(ShopScopedViewSetMixin, generics.GenericAPIView):
             user=request.user,
             notes=data.get("notes", ""),
         )
+        from apps.notifications.services import notify_low_stock
+
+        notify_low_stock(data["product"])
         log_activity(
             user=request.user,
             action="inventory.adjust",

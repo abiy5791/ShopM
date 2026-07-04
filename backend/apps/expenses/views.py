@@ -46,6 +46,9 @@ class ExpenseViewSet(ShopScopedModelViewSet):
     def perform_create(self, serializer):
         expense = serializer.save(shop=self.active_shop, user=self.request.user)
         self._log("expense.create", expense)
+        from apps.notifications.services import notify_large_expense
+
+        notify_large_expense(expense)
 
     def perform_update(self, serializer):
         expense = serializer.save()

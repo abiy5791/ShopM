@@ -54,9 +54,7 @@ def owner_dashboard(user) -> dict:
         {
             "shop_name": e.shop.name,
             "amount": e.amount,
-            "currency": (
-                e.shop.settings.currency if getattr(e.shop, "settings", None) else "USD"
-            ),
+            "currency": (e.shop.settings.currency if getattr(e.shop, "settings", None) else "USD"),
             "category": e.category.name if e.category else None,
             "by": e.user.full_name if e.user else None,
             "date": str(e.date),

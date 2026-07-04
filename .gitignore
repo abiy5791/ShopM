@@ -8,6 +8,7 @@ venv/
 *.sqlite3-journal
 /backend/staticfiles/
 /backend/media/
+/backend/backups/
 .coverage
 htmlcov/
 .pytest_cache/

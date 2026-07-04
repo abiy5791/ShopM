@@ -50,6 +50,7 @@ LOCAL_APPS = [
     "apps.customers",
     "apps.reports",
     "apps.owner",
+    "apps.notifications",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -208,10 +209,26 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.owner.tasks.send_daily_summaries",
         "schedule": crontab(hour=6, minute=0),
     },
+    "daily-summary-notifications": {
+        "task": "apps.notifications.tasks.push_daily_summaries",
+        "schedule": crontab(hour=6, minute=5),
+    },
+    "nightly-backup": {
+        "task": "apps.common.tasks.scheduled_backup",
+        "schedule": crontab(hour=3, minute=0),
+    },
 }
 
 # Feature flags
 OWNER_DAILY_SUMMARY_ENABLED = env.bool("OWNER_DAILY_SUMMARY_ENABLED", default=False)
+
+# Notification thresholds (integer minor units for money; count for logins).
+LARGE_EXPENSE_THRESHOLD = env.int("LARGE_EXPENSE_THRESHOLD", default=100_000)
+LARGE_VOID_THRESHOLD = env.int("LARGE_VOID_THRESHOLD", default=100_000)
+FAILED_LOGIN_THRESHOLD = env.int("FAILED_LOGIN_THRESHOLD", default=5)
+
+# Backups
+BACKUP_DIR = env("BACKUP_DIR", default=str(BASE_DIR / "backups"))
 
 # ---------------------------------------------------------------------------
 # Domain defaults

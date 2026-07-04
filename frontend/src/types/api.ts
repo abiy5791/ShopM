@@ -365,6 +365,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description GET /notifications for the active shop; mark read individually or all at once. */
+        get: operations["notifications_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/{id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description GET /notifications for the active shop; mark read individually or all at once. */
+        post: operations["notifications_read_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/read-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description GET /notifications for the active shop; mark read individually or all at once. */
+        post: operations["notifications_read_all_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/unread-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description GET /notifications for the active shop; mark read individually or all at once. */
+        get: operations["notifications_unread_count_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/owner/activity": {
         parameters: {
             query?: never;
@@ -993,6 +1061,29 @@ export interface components {
          * @enum {string}
          */
         MethodB20Enum: "cash" | "bank" | "mobile_money";
+        Notification: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly type: components["schemas"]["NotificationTypeEnum"];
+            readonly level: components["schemas"]["LevelEnum"];
+            readonly title: string;
+            readonly payload: unknown;
+            /** Format: date-time */
+            readonly read_at: string | null;
+            readonly is_read: boolean;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        /**
+         * @description * `low_stock` - Low stock
+         *     * `out_of_stock` - Out of stock
+         *     * `large_expense` - Large expense
+         *     * `large_void` - Large void
+         *     * `failed_login` - Failed logins
+         *     * `daily_summary` - Daily summary
+         * @enum {string}
+         */
+        NotificationTypeEnum: "low_stock" | "out_of_stock" | "large_expense" | "large_void" | "failed_login" | "daily_summary";
         PaginatedActivityLogList: {
             /** @example 123 */
             count: number;
@@ -1082,6 +1173,21 @@ export interface components {
              */
             previous?: string | null;
             results: components["schemas"]["InventoryTransaction"][];
+        };
+        PaginatedNotificationList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["Notification"][];
         };
         PaginatedProductList: {
             /** @example 123 */
@@ -1514,6 +1620,8 @@ export interface operations {
         parameters: {
             query?: {
                 action?: string;
+                created_after?: string;
+                created_before?: string;
                 /** @description * `info` - Info
                  *     * `warn` - Warning
                  *     * `critical` - Critical */
@@ -2391,6 +2499,109 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Me"];
+                };
+            };
+        };
+    };
+    notifications_list: {
+        parameters: {
+            query?: {
+                /** @description * `info` - Info
+                 *     * `warn` - Warning
+                 *     * `critical` - Critical */
+                level?: "critical" | "info" | "warn";
+                /** @description Which field to use when ordering the results. */
+                ordering?: string;
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+                /** @description A search term. */
+                search?: string;
+                /** @description * `low_stock` - Low stock
+                 *     * `out_of_stock` - Out of stock
+                 *     * `large_expense` - Large expense
+                 *     * `large_void` - Large void
+                 *     * `failed_login` - Failed logins
+                 *     * `daily_summary` - Daily summary */
+                type?: "daily_summary" | "failed_login" | "large_expense" | "large_void" | "low_stock" | "out_of_stock";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedNotificationList"];
+                };
+            };
+        };
+    };
+    notifications_read_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this notification. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notification"];
+                };
+            };
+        };
+    };
+    notifications_read_all_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    notifications_unread_count_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };
