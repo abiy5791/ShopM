@@ -49,6 +49,7 @@ LOCAL_APPS = [
     "apps.expenses",
     "apps.customers",
     "apps.reports",
+    "apps.owner",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -203,7 +204,14 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.inventory.tasks.reconcile_all_shops",
         "schedule": crontab(hour=2, minute=0),
     },
+    "daily-owner-summary": {
+        "task": "apps.owner.tasks.send_daily_summaries",
+        "schedule": crontab(hour=6, minute=0),
+    },
 }
+
+# Feature flags
+OWNER_DAILY_SUMMARY_ENABLED = env.bool("OWNER_DAILY_SUMMARY_ENABLED", default=False)
 
 # ---------------------------------------------------------------------------
 # Domain defaults

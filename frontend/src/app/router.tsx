@@ -5,6 +5,7 @@ import LoginPage from "@/features/auth/LoginPage";
 import CustomersPage from "@/features/customers/CustomersPage";
 import DashboardPage from "@/features/dashboard/DashboardPage";
 import ExpensesPage from "@/features/expenses/ExpensesPage";
+import OwnerConsolePage from "@/features/owner/OwnerConsolePage";
 import POSPage from "@/features/pos/POSPage";
 import ProductsPage from "@/features/products/ProductsPage";
 import PurchasesPage from "@/features/purchases/PurchasesPage";
@@ -65,6 +66,14 @@ export function AppRouter() {
           element={
             <RoleGate allow={["owner"]}>
               <ReportsPage />
+            </RoleGate>
+          }
+        />
+        <Route
+          path="console"
+          element={
+            <RoleGate allow={["owner"]}>
+              <OwnerConsolePage />
             </RoleGate>
           }
         />

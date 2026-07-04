@@ -3,7 +3,7 @@
 Multi-shop retail management with an offline-resilient POS and a remote owner console.
 Built per [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md), phase by phase.
 
-> **Status:** Phases 0–5 ✅ — Foundation · Catalog & inventory · POS / Sales · Purchases & expenses · Customers & credit · Reports & dashboard
+> **Status:** Phases 0–6 ✅ — Foundation · Catalog & inventory · POS / Sales · Purchases & expenses · Customers & credit · Reports & dashboard · Owner multi-shop console
 
 ## Stack
 

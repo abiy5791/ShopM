@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  Building2,
   LayoutDashboard,
   Package,
   Receipt,
@@ -31,6 +32,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/purchases", label: "Purchases", icon: Truck, roles: ["owner"], phase: 3 },
   { to: "/expenses", label: "Expenses", icon: Receipt, roles: ["owner"], phase: 3 },
   { to: "/reports", label: "Reports", icon: BarChart3, roles: ["owner"], phase: 5 },
+  { to: "/console", label: "Owner console", icon: Building2, roles: ["owner"], phase: 6 },
   { to: "/activity", label: "Activity", icon: ScrollText },
   { to: "/settings", label: "Settings", icon: Settings, roles: ["owner"], phase: 7 },
 ];

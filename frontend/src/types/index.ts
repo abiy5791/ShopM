@@ -308,6 +308,55 @@ export interface ReportData {
   money_columns: number[];
 }
 
+export interface OwnerShopSummary extends DashboardData {
+  shop_id: string;
+  shop_name: string;
+}
+
+export interface OwnerDashboardData {
+  shop_count: number;
+  shops: OwnerShopSummary[];
+  low_stock_alerts: {
+    shop_name: string;
+    product: string;
+    sku: string;
+    stock: number;
+    min_alert: number;
+  }[];
+  recent_expenses: {
+    shop_name: string;
+    amount: number;
+    currency: string;
+    category: string | null;
+    by: string | null;
+    date: string;
+  }[];
+  stock_movements: {
+    shop_name: string;
+    product: string;
+    type: TransactionType;
+    quantity: number;
+    at: string;
+  }[];
+}
+
+export interface ShopComparisonRow {
+  shop_id: string;
+  shop_name: string;
+  currency: string;
+  sales_total: number;
+  sales_count: number;
+  gross_profit: number;
+  expenses: number;
+  net_profit: number;
+  rank: number;
+}
+
+export interface ShopComparison {
+  period: { start: string; end: string };
+  shops: ShopComparisonRow[];
+}
+
 export interface Paginated<T> {
   count: number;
   next: string | null;
