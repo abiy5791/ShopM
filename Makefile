@@ -4,8 +4,11 @@ DC := docker compose
 BE := $(DC) exec backend
 FE := $(DC) exec frontend
 
+DC_PROD := docker compose -f docker-compose.prod.yml --env-file .env.prod
+
 .DEFAULT_GOAL := help
-.PHONY: help up down logs migrate makemigrations seed test test-be test-fe test-e2e lint fmt types shell
+.PHONY: help up down logs migrate makemigrations seed test test-be test-fe test-e2e lint fmt types shell \
+        deploy deploy-down deploy-logs backup audit
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -36,7 +39,7 @@ test-be: ## Backend tests (pytest)
 test-fe: ## Frontend unit tests (vitest)
 	$(FE) npm run test
 
-test-e2e: ## End-to-end tests (Playwright)
+test-e2e: ## End-to-end tests (Playwright). Needs `make up && make migrate && make seed` first
 	$(FE) npm run test:e2e
 
 lint: ## Lint both sides (ruff + black --check + eslint + prettier --check)
@@ -51,3 +54,19 @@ types: ## Regenerate OpenAPI schema + frontend API types
 
 shell: ## Django shell
 	$(BE) python manage.py shell
+
+deploy: ## Build & start the production stack (needs .env.prod — see .env.prod.example)
+	$(DC_PROD) up -d --build
+
+deploy-down: ## Stop the production stack
+	$(DC_PROD) down
+
+deploy-logs: ## Tail production logs
+	$(DC_PROD) logs -f
+
+backup: ## Trigger a manual database backup (see docs/BACKUP.md)
+	$(BE) python manage.py backup_db
+
+audit: ## Dependency vulnerability audit (backend + frontend)
+	$(BE) pip install pip-audit --quiet && $(BE) pip-audit
+	$(FE) npm audit --audit-level=high

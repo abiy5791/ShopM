@@ -40,7 +40,7 @@ export function Sidebar() {
           </NavLink>
         ))}
       </nav>
-      <div className="px-5 py-3 text-xs text-sidebar-foreground/40">v0.1 · Phase 0</div>
+      <div className="px-5 py-3 text-xs text-sidebar-foreground/40">ShopM v0.1</div>
     </aside>
   );
 }

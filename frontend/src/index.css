@@ -89,6 +89,22 @@
     font-variant-numeric: tabular-nums;
   }
 
+  /* Terminal caret next to the wordmark (login). The single motion signature;
+     reduced-motion neutralises the blink via the rule below. */
+  @keyframes caret-blink {
+    0%,
+    45% {
+      opacity: 1;
+    }
+    50%,
+    100% {
+      opacity: 0.12;
+    }
+  }
+  .caret-blink {
+    animation: caret-blink 1.15s steps(1) infinite;
+  }
+
   /* Honour reduced-motion (UX checklist). */
   @media (prefers-reduced-motion: reduce) {
     *,
@@ -97,6 +113,23 @@
       animation-duration: 0.01ms !important;
       transition-duration: 0.01ms !important;
     }
+  }
+}
+
+/* react-headroom in the app shell. In its fixed states (pinned/unpinned while
+   scrolled) the bar is position:fixed against the viewport, so it must be
+   offset by the 15rem sidebar on md+ and span the rest of the width. At the top
+   (unfixed) it flows normally inside the already-offset content column. */
+.app-headroom.headroom--pinned,
+.app-headroom.headroom--unpinned {
+  right: 0;
+  left: 0;
+  z-index: 30;
+}
+@media (min-width: 768px) {
+  .app-headroom.headroom--pinned,
+  .app-headroom.headroom--unpinned {
+    left: 15rem;
   }
 }
 

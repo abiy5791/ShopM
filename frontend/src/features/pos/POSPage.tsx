@@ -40,7 +40,7 @@ export default function POSPage() {
   const taxRate = Number(shop?.tax_rate ?? "0");
 
   const { products, offline, isLoading } = usePosCatalog();
-  const { pending, online } = usePendingSync();
+  const { pending, online, refresh: refreshPendingSync } = usePendingSync();
 
   const cart = useCartStore();
   const ensureShop = useCartStore((s) => s.ensureShop);
@@ -134,6 +134,7 @@ export default function POSPage() {
       cart.clear();
       setDiscountInput("");
       setCustomerId("none");
+      if (!result.synced) await refreshPendingSync(); // reflect the new queued sale immediately
       toast.success(result.synced ? "Sale completed" : "Saved offline — will sync when online");
     } catch {
       toast.error("Checkout failed. Please review and try again.");

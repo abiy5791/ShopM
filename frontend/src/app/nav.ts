@@ -1,6 +1,7 @@
 import {
   BarChart3,
   Building2,
+  ClipboardList,
   LayoutDashboard,
   Package,
   Receipt,
@@ -27,6 +28,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, phase: 5 },
   { to: "/pos", label: "Point of Sale", icon: ScanLine, roles: ["owner", "cashier"], phase: 2 },
+  { to: "/sales", label: "Sales", icon: ClipboardList, roles: ["owner", "cashier"], phase: 8 },
   { to: "/products", label: "Products", icon: Package, phase: 1 },
   { to: "/customers", label: "Customers", icon: Users, roles: ["owner", "cashier"], phase: 4 },
   { to: "/purchases", label: "Purchases", icon: Truck, roles: ["owner"], phase: 3 },

@@ -176,6 +176,8 @@ export interface Sale {
   client_uuid: string;
   cashier: string;
   cashier_email: string | null;
+  customer: string | null;
+  customer_name: string | null;
   subtotal: number;
   discount: number;
   tax: number;

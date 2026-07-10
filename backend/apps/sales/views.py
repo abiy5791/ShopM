@@ -30,7 +30,7 @@ class SaleViewSet(
     """POS sales. Create is idempotent on client_uuid; void is owner-only."""
 
     queryset = (
-        Sale.objects.select_related("cashier", "shop", "shop__settings")
+        Sale.objects.select_related("cashier", "shop", "shop__settings", "customer")
         .prefetch_related("items", "payments")
         .all()
     )

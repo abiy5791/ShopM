@@ -1,6 +1,10 @@
 """Test settings — fast, isolated, no external services."""
 
 from .base import *  # noqa: F401,F403
+from .base import REST_FRAMEWORK
+
+# Throttling off by default in tests (individual tests opt in via override_settings).
+REST_FRAMEWORK = {**REST_FRAMEWORK, "DEFAULT_THROTTLE_RATES": {"login": None}}
 
 DEBUG = False
 ALLOWED_HOSTS = ["testserver", "localhost"]

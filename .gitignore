@@ -24,6 +24,11 @@ node_modules/
 .env
 .env.*
 !.env.example
+!.env.prod.example
+
+# ---- TLS certs ----
+/nginx/certs/*
+!/nginx/certs/.gitkeep
 
 # ---- Editor / OS ----
 .idea/

@@ -1,13 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AxiosError } from "axios";
-import { Loader2, Store } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Navigate, useNavigate } from "react-router-dom";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuthStore } from "@/lib/auth";
@@ -20,6 +19,17 @@ const schema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 type FormValues = z.infer<typeof schema>;
+
+/** The wordmark is set in monospace and paired with a blinking block caret — the
+ *  brand reads like a receipt printer / POS terminal, the product's own world. */
+function Wordmark({ className = "" }: { className?: string }) {
+  return (
+    <span className={"font-mono text-xl font-bold tracking-tight " + className}>
+      ShopM
+      <span className="caret-blink ml-0.5 inline-block h-4 w-[0.55rem] translate-y-0.5 bg-accent" />
+    </span>
+  );
+}
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -42,22 +52,53 @@ export default function LoginPage() {
       navigate("/", { replace: true });
     } catch (err) {
       const detail = (err as AxiosError<ApiError>).response?.data?.detail;
-      setFormError(detail ?? "Unable to sign in. Please try again.");
+      setFormError(detail ?? "We couldn't sign you in. Check your email and password.");
     }
   });
 
   return (
-    <div className="flex min-h-full items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="space-y-2 text-center">
-          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Store className="h-6 w-6" />
+    <div className="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
+      {/* --- Brand panel: the offline-POS thesis, told through a receipt --- */}
+      <aside
+        className="relative hidden flex-col justify-between overflow-hidden bg-sidebar p-10 text-sidebar-foreground lg:flex xl:p-14"
+        style={{
+          backgroundImage:
+            "radial-gradient(hsl(var(--sidebar-foreground) / 0.06) 1px, transparent 1px)",
+          backgroundSize: "22px 22px",
+        }}
+      >
+        <Wordmark />
+
+        <div className="relative flex flex-1 items-center">
+          <ReceiptStrip />
+        </div>
+
+        <div>
+          <h1 className="max-w-md text-2xl font-semibold leading-snug">
+            Keep selling — even when the internet drops.
+          </h1>
+          <p className="mt-2 max-w-md text-sm text-sidebar-foreground/60">
+            Point of sale, inventory, and reports for every shop you run.
+          </p>
+          <p className="mt-6 font-mono text-xs uppercase tracking-widest text-sidebar-foreground/40">
+            Offline-ready POS · Multi-shop · Live reports
+          </p>
+        </div>
+      </aside>
+
+      {/* --- Sign-in --- */}
+      <main className="flex items-center justify-center bg-background p-6">
+        <div className="w-full max-w-sm">
+          <div className="mb-8 lg:hidden">
+            <Wordmark />
           </div>
-          <CardTitle className="text-xl">Sign in to ShopM</CardTitle>
-          <CardDescription>Manage your shops and point of sale</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={onSubmit} noValidate className="space-y-4">
+
+          <h2 className="text-2xl font-semibold tracking-tight">Sign in</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Welcome back. Enter your details to continue.
+          </p>
+
+          <form onSubmit={onSubmit} noValidate className="mt-8 space-y-4">
             {formError && (
               <p
                 role="alert"
@@ -73,6 +114,7 @@ export default function LoginPage() {
                 id="email"
                 type="email"
                 autoComplete="email"
+                autoFocus
                 aria-invalid={Boolean(errors.email)}
                 {...register("email")}
               />
@@ -104,8 +146,68 @@ export default function LoginPage() {
               Sign in
             </Button>
           </form>
-        </CardContent>
-      </Card>
+
+          <div className="mt-6 rounded-md border border-dashed px-3 py-2.5 text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">Demo</span> — sign in with{" "}
+            <span className="font-mono">owner@shopm.local</span> ·{" "}
+            <span className="font-mono">password123</span>
+          </div>
+        </div>
+      </main>
     </div>
   );
+}
+
+/** The signature element: a torn thermal receipt whose final line — a green
+ *  "SYNCED" stamp — is the whole product promise in one glance. Figures use the
+ *  seeded catalogue so it reads as a real sale, not lorem filler. */
+function ReceiptStrip() {
+  const items = [
+    { q: 2, name: "Cola 500ml", amt: "3.00" },
+    { q: 1, name: "White Bread", amt: "2.50" },
+    { q: 1, name: "Whole Milk 1L", amt: "2.20" },
+  ];
+  const totals = [
+    { label: "SUBTOTAL", amt: "7.70" },
+    { label: "CASH", amt: "10.00" },
+    { label: "CHANGE", amt: "2.30" },
+  ];
+  return (
+    <div className="w-full max-w-[300px] -rotate-1">
+      <div className="rounded-sm bg-[#FAFAF7] p-5 font-mono text-[13px] leading-relaxed text-slate-800 shadow-2xl shadow-black/40">
+        <div className="text-center">
+          <p className="font-semibold uppercase tracking-wide">Downtown Store</p>
+          <p className="text-[11px] text-slate-500">Tue 14:32</p>
+        </div>
+        <Dashed />
+        {items.map((i) => (
+          <div key={i.name} className="flex justify-between">
+            <span>
+              {i.q} × {i.name}
+            </span>
+            <span className="tabular-nums">{i.amt}</span>
+          </div>
+        ))}
+        <Dashed />
+        {totals.map((t) => (
+          <div key={t.label} className="flex justify-between">
+            <span className="text-slate-500">{t.label}</span>
+            <span className="tabular-nums">{t.amt}</span>
+          </div>
+        ))}
+        <Dashed />
+        <div className="flex items-center gap-2 font-semibold text-accent">
+          <span className="flex h-4 w-4 items-center justify-center rounded-sm bg-accent text-white">
+            <Check className="h-3 w-3" strokeWidth={3} />
+          </span>
+          SYNCED
+        </div>
+        <p className="mt-1 text-[11px] text-slate-400">Recorded offline · synced on reconnect</p>
+      </div>
+    </div>
+  );
+}
+
+function Dashed() {
+  return <div className="my-2 border-t border-dashed border-slate-300" />;
 }

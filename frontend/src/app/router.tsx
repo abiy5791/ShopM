@@ -10,6 +10,7 @@ import POSPage from "@/features/pos/POSPage";
 import ProductsPage from "@/features/products/ProductsPage";
 import PurchasesPage from "@/features/purchases/PurchasesPage";
 import ReportsPage from "@/features/reports/ReportsPage";
+import SalesPage from "@/features/sales/SalesPage";
 import SettingsPage from "@/features/settings/SettingsPage";
 
 import { RequireAuth, RoleGate } from "./guards";
@@ -33,6 +34,14 @@ export function AppRouter() {
           element={
             <RoleGate allow={["owner", "cashier"]}>
               <POSPage />
+            </RoleGate>
+          }
+        />
+        <Route
+          path="sales"
+          element={
+            <RoleGate allow={["owner", "cashier"]}>
+              <SalesPage />
             </RoleGate>
           }
         />

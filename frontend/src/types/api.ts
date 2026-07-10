@@ -11,8 +11,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description GET /activity — audit trail for the active shop. Owners see everything;
-         *     cashiers see only their own actions (plan §8). */
+        /**
+         * @description GET /activity — audit trail for the active shop. Owners see everything;
+         *     cashiers see only their own actions (plan §8).
+         */
         get: operations["activity_list"];
         put?: never;
         post?: never;
@@ -29,8 +31,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description GET /activity — audit trail for the active shop. Owners see everything;
-         *     cashiers see only their own actions (plan §8). */
+        /**
+         * @description GET /activity — audit trail for the active shop. Owners see everything;
+         *     cashiers see only their own actions (plan §8).
+         */
         get: operations["activity_retrieve"];
         put?: never;
         post?: never;
@@ -49,7 +53,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description POST /auth/login — returns {access, refresh, user}. Records IP + activity. */
+        /**
+         * @description POST /auth/login — returns {access, refresh, user}. Records IP + activity.
+         *     Rate-limited to blunt credential-stuffing (plan §14).
+         */
         post: operations["auth_login_create"];
         delete?: never;
         options?: never;
@@ -83,8 +90,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Takes a refresh type JSON web token and returns an access type JSON web
-         *     token if the refresh token is valid. */
+        /**
+         * @description Takes a refresh type JSON web token and returns an access type JSON web
+         *     token if the refresh token is valid.
+         */
         post: operations["auth_refresh_create"];
         delete?: never;
         options?: never;
@@ -99,16 +108,20 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+        /**
+         * @description CRUD viewset auto-scoped to the active shop, with RBAC.
          *
          *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
-         *     reads stay open to any shop member by default. */
+         *     reads stay open to any shop member by default.
+         */
         get: operations["categories_list"];
         put?: never;
-        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+        /**
+         * @description CRUD viewset auto-scoped to the active shop, with RBAC.
          *
          *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
-         *     reads stay open to any shop member by default. */
+         *     reads stay open to any shop member by default.
+         */
         post: operations["categories_create"];
         delete?: never;
         options?: never;
@@ -123,28 +136,36 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+        /**
+         * @description CRUD viewset auto-scoped to the active shop, with RBAC.
          *
          *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
-         *     reads stay open to any shop member by default. */
+         *     reads stay open to any shop member by default.
+         */
         get: operations["categories_retrieve"];
-        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+        /**
+         * @description CRUD viewset auto-scoped to the active shop, with RBAC.
          *
          *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
-         *     reads stay open to any shop member by default. */
+         *     reads stay open to any shop member by default.
+         */
         put: operations["categories_update"];
         post?: never;
-        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+        /**
+         * @description CRUD viewset auto-scoped to the active shop, with RBAC.
          *
          *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
-         *     reads stay open to any shop member by default. */
+         *     reads stay open to any shop member by default.
+         */
         delete: operations["categories_destroy"];
         options?: never;
         head?: never;
-        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+        /**
+         * @description CRUD viewset auto-scoped to the active shop, with RBAC.
          *
          *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
-         *     reads stay open to any shop member by default. */
+         *     reads stay open to any shop member by default.
+         */
         patch: operations["categories_partial_update"];
         trace?: never;
     };
@@ -305,8 +326,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description POST /inventory/adjust — manual signed stock movement → one ledger row
-         *     + cached-stock update in a single DB transaction (plan §3.2). Owner only. */
+        /**
+         * @description POST /inventory/adjust — manual signed stock movement → one ledger row
+         *     + cached-stock update in a single DB transaction (plan §3.2). Owner only.
+         */
         post: operations["inventory_adjust_create"];
         delete?: never;
         options?: never;
@@ -457,8 +480,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description GET /owner/dashboard — aggregates across every shop the user owns.
-         *     No X-Shop-Id; cashiers (non-owners) get 403 (plan §11 Phase 6). */
+        /**
+         * @description GET /owner/dashboard — aggregates across every shop the user owns.
+         *     No X-Shop-Id; cashiers (non-owners) get 403 (plan §11 Phase 6).
+         */
         get: operations["owner_dashboard_retrieve"];
         put?: never;
         post?: never;
@@ -509,16 +534,20 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+        /**
+         * @description CRUD viewset auto-scoped to the active shop, with RBAC.
          *
          *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
-         *     reads stay open to any shop member by default. */
+         *     reads stay open to any shop member by default.
+         */
         get: operations["products_list"];
         put?: never;
-        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+        /**
+         * @description CRUD viewset auto-scoped to the active shop, with RBAC.
          *
          *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
-         *     reads stay open to any shop member by default. */
+         *     reads stay open to any shop member by default.
+         */
         post: operations["products_create"];
         delete?: never;
         options?: never;
@@ -533,28 +562,36 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+        /**
+         * @description CRUD viewset auto-scoped to the active shop, with RBAC.
          *
          *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
-         *     reads stay open to any shop member by default. */
+         *     reads stay open to any shop member by default.
+         */
         get: operations["products_retrieve"];
-        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+        /**
+         * @description CRUD viewset auto-scoped to the active shop, with RBAC.
          *
          *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
-         *     reads stay open to any shop member by default. */
+         *     reads stay open to any shop member by default.
+         */
         put: operations["products_update"];
         post?: never;
-        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+        /**
+         * @description CRUD viewset auto-scoped to the active shop, with RBAC.
          *
          *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
-         *     reads stay open to any shop member by default. */
+         *     reads stay open to any shop member by default.
+         */
         delete: operations["products_destroy"];
         options?: never;
         head?: never;
-        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+        /**
+         * @description CRUD viewset auto-scoped to the active shop, with RBAC.
          *
          *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
-         *     reads stay open to any shop member by default. */
+         *     reads stay open to any shop member by default.
+         */
         patch: operations["products_partial_update"];
         trace?: never;
     };
@@ -840,16 +877,20 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+        /**
+         * @description CRUD viewset auto-scoped to the active shop, with RBAC.
          *
          *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
-         *     reads stay open to any shop member by default. */
+         *     reads stay open to any shop member by default.
+         */
         get: operations["suppliers_list"];
         put?: never;
-        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+        /**
+         * @description CRUD viewset auto-scoped to the active shop, with RBAC.
          *
          *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
-         *     reads stay open to any shop member by default. */
+         *     reads stay open to any shop member by default.
+         */
         post: operations["suppliers_create"];
         delete?: never;
         options?: never;
@@ -864,28 +905,36 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+        /**
+         * @description CRUD viewset auto-scoped to the active shop, with RBAC.
          *
          *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
-         *     reads stay open to any shop member by default. */
+         *     reads stay open to any shop member by default.
+         */
         get: operations["suppliers_retrieve"];
-        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+        /**
+         * @description CRUD viewset auto-scoped to the active shop, with RBAC.
          *
          *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
-         *     reads stay open to any shop member by default. */
+         *     reads stay open to any shop member by default.
+         */
         put: operations["suppliers_update"];
         post?: never;
-        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+        /**
+         * @description CRUD viewset auto-scoped to the active shop, with RBAC.
          *
          *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
-         *     reads stay open to any shop member by default. */
+         *     reads stay open to any shop member by default.
+         */
         delete: operations["suppliers_destroy"];
         options?: never;
         head?: never;
-        /** @description CRUD viewset auto-scoped to the active shop, with RBAC.
+        /**
+         * @description CRUD viewset auto-scoped to the active shop, with RBAC.
          *
          *     Declare ``action_roles`` (e.g. {"create": ["owner"], ...}) to gate writes;
-         *     reads stay open to any shop member by default. */
+         *     reads stay open to any shop member by default.
+         */
         patch: operations["suppliers_partial_update"];
         trace?: never;
     };
@@ -1622,9 +1671,11 @@ export interface operations {
                 action?: string;
                 created_after?: string;
                 created_before?: string;
-                /** @description * `info` - Info
+                /**
+                 * @description * `info` - Info
                  *     * `warn` - Warning
-                 *     * `critical` - Critical */
+                 *     * `critical` - Critical
+                 */
                 level?: "critical" | "info" | "warn";
                 /** @description Which field to use when ordering the results. */
                 ordering?: string;
@@ -2436,14 +2487,16 @@ export interface operations {
                 product?: string;
                 /** @description A search term. */
                 search?: string;
-                /** @description * `purchase` - Purchase
+                /**
+                 * @description * `purchase` - Purchase
                  *     * `sale` - Sale
                  *     * `adjustment` - Adjustment
                  *     * `damage` - Damage
                  *     * `expiry` - Expiry
                  *     * `return_in` - Return in
                  *     * `return_out` - Return out
-                 *     * `reconcile` - Reconcile */
+                 *     * `reconcile` - Reconcile
+                 */
                 type?: "adjustment" | "damage" | "expiry" | "purchase" | "reconcile" | "return_in" | "return_out" | "sale";
             };
             header?: never;
@@ -2506,9 +2559,11 @@ export interface operations {
     notifications_list: {
         parameters: {
             query?: {
-                /** @description * `info` - Info
+                /**
+                 * @description * `info` - Info
                  *     * `warn` - Warning
-                 *     * `critical` - Critical */
+                 *     * `critical` - Critical
+                 */
                 level?: "critical" | "info" | "warn";
                 /** @description Which field to use when ordering the results. */
                 ordering?: string;
@@ -2518,12 +2573,14 @@ export interface operations {
                 page_size?: number;
                 /** @description A search term. */
                 search?: string;
-                /** @description * `low_stock` - Low stock
+                /**
+                 * @description * `low_stock` - Low stock
                  *     * `out_of_stock` - Out of stock
                  *     * `large_expense` - Large expense
                  *     * `large_void` - Large void
                  *     * `failed_login` - Failed logins
-                 *     * `daily_summary` - Daily summary */
+                 *     * `daily_summary` - Daily summary
+                 */
                 type?: "daily_summary" | "failed_login" | "large_expense" | "large_void" | "low_stock" | "out_of_stock";
             };
             header?: never;
@@ -2610,9 +2667,11 @@ export interface operations {
         parameters: {
             query?: {
                 action?: string;
-                /** @description * `info` - Info
+                /**
+                 * @description * `info` - Info
                  *     * `warn` - Warning
-                 *     * `critical` - Critical */
+                 *     * `critical` - Critical
+                 */
                 level?: "critical" | "info" | "warn";
                 /** @description Which field to use when ordering the results. */
                 ordering?: string;
@@ -2726,8 +2785,10 @@ export interface operations {
                 page_size?: number;
                 /** @description A search term. */
                 search?: string;
-                /** @description * `active` - Active
-                 *     * `inactive` - Inactive */
+                /**
+                 * @description * `active` - Active
+                 *     * `inactive` - Inactive
+                 */
                 status?: "active" | "inactive";
             };
             header?: never;
@@ -2946,9 +3007,11 @@ export interface operations {
                 page?: number;
                 /** @description Number of results to return per page. */
                 page_size?: number;
-                /** @description * `paid` - Paid
+                /**
+                 * @description * `paid` - Paid
                  *     * `partial` - Partial
-                 *     * `unpaid` - Unpaid */
+                 *     * `unpaid` - Unpaid
+                 */
                 payment_status?: "paid" | "partial" | "unpaid";
                 /** @description A search term. */
                 search?: string;
@@ -3126,8 +3189,10 @@ export interface operations {
                 page_size?: number;
                 /** @description A search term. */
                 search?: string;
-                /** @description * `completed` - Completed
-                 *     * `voided` - Voided */
+                /**
+                 * @description * `completed` - Completed
+                 *     * `voided` - Voided
+                 */
                 status?: "completed" | "voided";
             };
             header?: never;

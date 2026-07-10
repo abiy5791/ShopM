@@ -10,7 +10,7 @@ exporters can render any of them:
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 
 from django.db.models import BigIntegerField, Count, ExpressionWrapper, F, Sum
 from django.db.models.functions import TruncDate, TruncMonth, TruncWeek, TruncYear
@@ -24,6 +24,17 @@ from apps.sales.models import Payment, Sale, SaleItem
 _LINE_COST = ExpressionWrapper(
     F("quantity") * F("product__purchase_price"), output_field=BigIntegerField()
 )
+
+
+def _datetime_range(start: date, end: date) -> tuple[datetime, datetime]:
+    """Half-open [start, end] datetime bounds for filtering a DateTimeField by
+    calendar date. Using gte/lt on the raw column (rather than `__date=`/
+    `__date__gte`) lets Postgres use the plain (shop, -created_at) index instead
+    of computing `created_at::date` per row."""
+    tz = timezone.get_current_timezone()
+    start_dt = timezone.make_aware(datetime.combine(start, time.min), tz)
+    end_dt = timezone.make_aware(datetime.combine(end, time.min), tz) + timedelta(days=1)
+    return start_dt, end_dt
 
 
 def _currency(shop) -> str:
@@ -43,7 +54,8 @@ def _cogs(sale_qs) -> int:
 # ---------------------------------------------------------------- dashboard
 def dashboard(shop) -> dict:
     today = timezone.now().date()
-    todays_sales = _completed_sales(shop).filter(created_at__date=today)
+    day_start, day_end = _datetime_range(today, today)
+    todays_sales = _completed_sales(shop).filter(created_at__gte=day_start, created_at__lt=day_end)
     sales_total = todays_sales.aggregate(s=Sum("total"))["s"] or 0
     sales_count = todays_sales.count()
     cogs = _cogs(todays_sales)
@@ -63,12 +75,12 @@ def dashboard(shop) -> dict:
         Purchase.objects.filter(shop=shop).aggregate(s=Sum("amount_paid"))["s"] or 0
     )
 
-    month_start = today.replace(day=1)
+    month_start, _ = _datetime_range(today.replace(day=1), today.replace(day=1))
     best_sellers = list(
         SaleItem.objects.filter(
             sale__shop=shop,
             sale__status=Sale.Status.COMPLETED,
-            sale__created_at__date__gte=month_start,
+            sale__created_at__gte=month_start,
         )
         .values("name_snapshot")
         .annotate(quantity=Sum("quantity"))
@@ -121,7 +133,8 @@ _TRUNC = {
 def sales_report(shop, *, period="daily", start=None, end=None) -> dict:
     start, end = _default_range(start, end)
     trunc = _TRUNC.get(period, TruncDate)
-    qs = _completed_sales(shop).filter(created_at__date__gte=start, created_at__date__lte=end)
+    range_start, range_end = _datetime_range(start, end)
+    qs = _completed_sales(shop).filter(created_at__gte=range_start, created_at__lt=range_end)
     grouped = (
         qs.annotate(bucket=trunc("created_at"))
         .values("bucket")
@@ -178,7 +191,8 @@ def inventory_report(shop) -> dict:
 # ---------------------------------------------------------------- profit
 def profit_report(shop, *, start=None, end=None) -> dict:
     start, end = _default_range(start, end)
-    qs = _completed_sales(shop).filter(created_at__date__gte=start, created_at__date__lte=end)
+    range_start, range_end = _datetime_range(start, end)
+    qs = _completed_sales(shop).filter(created_at__gte=range_start, created_at__lt=range_end)
     revenue = qs.aggregate(s=Sum("total"))["s"] or 0
     cogs = _cogs(qs)
     gross = revenue - cogs
@@ -217,12 +231,13 @@ def profit_report(shop, *, start=None, end=None) -> dict:
 # ---------------------------------------------------------------- cashflow
 def cashflow_report(shop, *, start=None, end=None) -> dict:
     start, end = _default_range(start, end)
+    range_start, range_end = _datetime_range(start, end)
     cash_in = (
         Payment.objects.filter(
             shop=shop,
             method=Payment.Method.CASH,
-            received_at__date__gte=start,
-            received_at__date__lte=end,
+            received_at__gte=range_start,
+            received_at__lt=range_end,
         )
         .exclude(sale__status=Sale.Status.VOIDED)
         .aggregate(s=Sum("amount"))["s"]

@@ -1,5 +1,5 @@
 import { Loader2, Plus, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -55,6 +55,16 @@ export function PaymentDialog({
   const [lines, setLines] = useState<Line[]>([
     { method: "cash", amount: minorToInput(total, currency) },
   ]);
+
+  // Re-seed the default payment amount each time the dialog opens for a new
+  // checkout — `lines` must not stay frozen at whatever `total` was when this
+  // component first mounted (POSPage keeps it mounted for the whole session).
+  useEffect(() => {
+    if (open) {
+      setLines([{ method: "cash", amount: minorToInput(total, currency) }]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const paid = useMemo(
     () => lines.reduce((sum, l) => sum + (parseMoney(l.amount, currency) || 0), 0),

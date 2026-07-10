@@ -16,6 +16,7 @@ from django.utils import timezone
 from apps.catalog.models import Product
 from apps.expenses.models import Expense
 from apps.inventory.models import InventoryTransaction
+from apps.reports.services import _datetime_range
 from apps.reports.services import dashboard as shop_dashboard
 from apps.sales.models import Sale, SaleItem
 
@@ -90,13 +91,14 @@ def compare_shops(user, *, start=None, end=None) -> dict:
     """Side-by-side performance for a period, ranked by sales total."""
     end = end or timezone.now().date()
     start = start or (end - timedelta(days=29))
+    range_start, range_end = _datetime_range(start, end)
     rows = []
     for shop in owned_shops(user):
         sales_qs = Sale.objects.filter(
             shop=shop,
             status=Sale.Status.COMPLETED,
-            created_at__date__gte=start,
-            created_at__date__lte=end,
+            created_at__gte=range_start,
+            created_at__lt=range_end,
         )
         revenue = sales_qs.aggregate(s=Sum("total"))["s"] or 0
         cogs = SaleItem.objects.filter(sale__in=sales_qs).aggregate(c=Sum(_LINE_COST))["c"] or 0

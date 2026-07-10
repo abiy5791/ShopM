@@ -14,10 +14,12 @@ from .serializers import LogoutSerializer, MeSerializer, TokenPairSerializer
 
 
 class LoginView(TokenObtainPairView):
-    """POST /auth/login — returns {access, refresh, user}. Records IP + activity."""
+    """POST /auth/login — returns {access, refresh, user}. Records IP + activity.
+    Rate-limited to blunt credential-stuffing (plan §14)."""
 
     serializer_class = TokenPairSerializer
     permission_classes = [AllowAny]
+    throttle_scope = "login"
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
