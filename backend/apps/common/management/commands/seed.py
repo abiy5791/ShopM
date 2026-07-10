@@ -31,14 +31,15 @@ EXPENSE_CATEGORIES = [
     "Misc",
 ]
 
-# (name, category, sku, selling_price (minor units), min_alert, opening_stock)
+# (name, category, sku, selling_price, min_alert, opening_stock)
+# Prices are in minor units — santim; 100 santim = 1 Birr, so 3000 = Br 30.00.
 DEMO_PRODUCTS = [
-    ("Cola 500ml", "Beverages", "BEV-001", 150, 24, 120),
-    ("Mineral Water 1L", "Beverages", "BEV-002", 100, 24, 8),  # low stock on purpose
-    ("White Bread", "Bakery", "BAK-001", 250, 10, 40),
-    ("Whole Milk 1L", "Dairy", "DAI-001", 220, 12, 30),
-    ("AA Batteries (4pk)", "Household", "HOU-001", 600, 6, 15),
-    ("Dish Soap 500ml", "Household", "HOU-002", 480, 6, 3),  # low stock on purpose
+    ("Ambo Water 1L", "Beverages", "BEV-001", 3000, 24, 120),
+    ("Coca-Cola 300ml", "Beverages", "BEV-002", 2500, 24, 8),  # low stock on purpose
+    ("Dabo Bread", "Bakery", "BAK-001", 1500, 10, 40),
+    ("Berbere 500g", "Spices", "SPC-001", 12000, 12, 30),
+    ("Sunflower Oil 1L", "Household", "HOU-001", 25000, 6, 15),
+    ("Laundry Soap", "Household", "HOU-002", 4000, 6, 3),  # low stock on purpose
 ]
 
 
@@ -50,19 +51,19 @@ class Command(BaseCommand):
         owner_role, _ = Role.objects.get_or_create(name=Role.Name.OWNER)
         cashier_role, _ = Role.objects.get_or_create(name=Role.Name.CASHIER)
 
-        owner = self._user("owner@shopm.local", "Olivia Owner")
+        owner = self._user("owner@shopm.local", "Abebe Kebede")
         currency = django_settings.DEFAULT_CURRENCY
 
         specs = [
-            ("Downtown Store", "12 Market Street", "cashier.a@shopm.local", "Casey Cashier A"),
-            ("Riverside Store", "5 Riverside Ave", "cashier.b@shopm.local", "Cody Cashier B"),
+            ("Bole Mini-Mart", "Bole, Addis Ababa", "cashier.a@shopm.local", "Sara Alemu"),
+            ("Piassa Shop", "Piassa, Addis Ababa", "cashier.b@shopm.local", "Dawit Bekele"),
         ]
 
         for shop_name, address, cashier_email, cashier_name in specs:
             shop, _ = Shop.objects.get_or_create(
                 name=shop_name,
                 owner=owner,
-                defaults={"address": address, "phone": "+10000000000"},
+                defaults={"address": address, "phone": "+251911000000"},
             )
             ShopSettings.objects.get_or_create(
                 shop=shop,
@@ -104,7 +105,7 @@ class Command(BaseCommand):
 
     def _seed_catalog(self, shop, owner):
         supplier, _ = Supplier.objects.get_or_create(
-            shop=shop, name="Acme Wholesale", defaults={"phone": "+10000000001"}
+            shop=shop, name="Merkato Wholesale", defaults={"phone": "+251911000001"}
         )
         for name, cat_name, sku, price, min_alert, opening in DEMO_PRODUCTS:
             category, _ = Category.objects.get_or_create(shop=shop, name=cat_name)

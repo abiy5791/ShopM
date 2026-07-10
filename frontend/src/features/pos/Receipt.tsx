@@ -4,7 +4,7 @@ import type { ReceiptData } from "@/types";
 /** Thermal-style receipt, sized for an 80mm roll. Printed via the @media print
  *  rule in index.css that isolates #receipt-print. */
 export function Receipt({ data }: { data: ReceiptData }) {
-  const money = (v: number) => formatMoney(v, data.currency || "USD");
+  const money = (v: number) => formatMoney(v, data.currency || "ETB");
   return (
     <div id="receipt-print" className="mx-auto max-w-[320px] bg-card p-4 font-mono text-xs">
       <div className="text-center">

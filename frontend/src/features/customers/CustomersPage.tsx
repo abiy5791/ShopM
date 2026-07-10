@@ -24,7 +24,7 @@ import { CustomerFormDialog } from "./CustomerFormDialog";
 
 export default function CustomersPage() {
   const shop = useActiveShop();
-  const currency = shop?.currency ?? "USD";
+  const currency = shop?.currency ?? "ETB";
   const [search, setSearch] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Customer | undefined>(undefined);

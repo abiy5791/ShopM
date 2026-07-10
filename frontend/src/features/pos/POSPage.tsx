@@ -36,7 +36,7 @@ export default function POSPage() {
   const shop = useActiveShop();
   const shopId = useAuthStore((s) => s.activeShopId);
   const user = useAuthStore((s) => s.user);
-  const currency = shop?.currency ?? "USD";
+  const currency = shop?.currency ?? "ETB";
   const taxRate = Number(shop?.tax_rate ?? "0");
 
   const { products, offline, isLoading } = usePosCatalog();

@@ -29,7 +29,7 @@ const STATUS_VARIANT: Record<PaymentStatus, "accent" | "secondary" | "destructiv
 
 export default function PurchasesPage() {
   const shop = useActiveShop();
-  const currency = shop?.currency ?? "USD";
+  const currency = shop?.currency ?? "ETB";
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState(false);
   const { data, isLoading, isError } = usePurchases(page);

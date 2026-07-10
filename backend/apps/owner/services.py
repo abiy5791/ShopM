@@ -55,7 +55,7 @@ def owner_dashboard(user) -> dict:
         {
             "shop_name": e.shop.name,
             "amount": e.amount,
-            "currency": (e.shop.settings.currency if getattr(e.shop, "settings", None) else "USD"),
+            "currency": (e.shop.settings.currency if getattr(e.shop, "settings", None) else "ETB"),
             "category": e.category.name if e.category else None,
             "by": e.user.full_name if e.user else None,
             "date": str(e.date),
@@ -113,7 +113,7 @@ def compare_shops(user, *, start=None, end=None) -> dict:
             {
                 "shop_id": str(shop.id),
                 "shop_name": shop.name,
-                "currency": settings.currency if settings else "USD",
+                "currency": settings.currency if settings else "ETB",
                 "sales_total": revenue,
                 "sales_count": sales_qs.count(),
                 "gross_profit": revenue - cogs,

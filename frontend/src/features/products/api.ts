@@ -65,7 +65,7 @@ export function useActiveCurrency(): string {
     queryFn: async () => (await api.get<Paginated<Shop>>("/shops")).data.results,
     staleTime: 5 * 60 * 1000,
   });
-  return data?.find((s) => s.id === activeShopId)?.currency ?? "USD";
+  return data?.find((s) => s.id === activeShopId)?.currency ?? "ETB";
 }
 
 export interface ProductInput {

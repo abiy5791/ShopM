@@ -11,6 +11,7 @@ from django.db import models
 
 # Minor-unit exponent per currency (how many decimal places the currency has).
 CURRENCY_EXPONENTS: dict[str, int] = {
+    "ETB": 2,
     "USD": 2,
     "EUR": 2,
     "GBP": 2,
@@ -27,6 +28,7 @@ DEFAULT_EXPONENT = 2
 
 # Common display symbols; falls back to the ISO code.
 CURRENCY_SYMBOLS: dict[str, str] = {
+    "ETB": "Br",
     "USD": "$",
     "EUR": "€",
     "GBP": "£",

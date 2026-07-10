@@ -17,7 +17,7 @@ class ShopSerializer(serializers.ModelSerializer):
     @extend_schema_field(serializers.CharField())
     def get_currency(self, shop):
         settings = getattr(shop, "settings", None)
-        return settings.currency if settings else "USD"
+        return settings.currency if settings else "ETB"
 
     @extend_schema_field(serializers.CharField())
     def get_tax_rate(self, shop):

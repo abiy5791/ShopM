@@ -17,7 +17,7 @@ export default function DashboardPage() {
   );
   const isOwner = role === "owner";
   const shop = useActiveShop();
-  const currency = shop?.currency ?? "USD";
+  const currency = shop?.currency ?? "ETB";
   const { data, isLoading } = useDashboard(isOwner);
 
   const firstName = user?.full_name.split(" ")[0] ?? "";

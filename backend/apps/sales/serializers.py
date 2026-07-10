@@ -158,7 +158,7 @@ class ReceiptSerializer(serializers.ModelSerializer):
 
     def get_currency(self, sale) -> str:
         s = self._settings(sale)
-        return s.currency if s else "USD"
+        return s.currency if s else "ETB"
 
     def get_receipt_footer(self, sale) -> str:
         s = self._settings(sale)

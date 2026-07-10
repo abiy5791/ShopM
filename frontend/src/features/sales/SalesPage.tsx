@@ -24,7 +24,7 @@ import { useSales, useVoidSale } from "./api";
 
 export default function SalesPage() {
   const shop = useActiveShop();
-  const currency = shop?.currency ?? "USD";
+  const currency = shop?.currency ?? "ETB";
   const isOwner = useAuthStore(
     (s) => s.memberships.find((m) => m.shop_id === s.activeShopId)?.role === "owner",
   );

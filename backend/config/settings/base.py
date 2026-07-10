@@ -127,7 +127,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # i18n / tz
 # ---------------------------------------------------------------------------
 LANGUAGE_CODE = "en-us"
-TIME_ZONE = env("DEFAULT_TIMEZONE", default="UTC")
+TIME_ZONE = env("DEFAULT_TIMEZONE", default="Africa/Addis_Ababa")
 USE_I18N = True
 USE_TZ = True
 
@@ -238,7 +238,7 @@ BACKUP_DIR = env("BACKUP_DIR", default=str(BASE_DIR / "backups"))
 # ---------------------------------------------------------------------------
 # Domain defaults
 # ---------------------------------------------------------------------------
-DEFAULT_CURRENCY = env("DEFAULT_CURRENCY", default="USD")
+DEFAULT_CURRENCY = env("DEFAULT_CURRENCY", default="ETB")
 
 # ---------------------------------------------------------------------------
 # Email

@@ -55,7 +55,7 @@ const schema = z.object({
 });
 type FormValues = z.infer<typeof schema>;
 
-function defaults(product?: Product, currency = "USD"): FormValues {
+function defaults(product?: Product, currency = "ETB"): FormValues {
   return {
     name: product?.name ?? "",
     sku: product?.sku ?? "",

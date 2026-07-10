@@ -52,14 +52,14 @@ class ShopSettings(BaseModel):
     """One settings row per shop (plan §7)."""
 
     shop = models.OneToOneField(Shop, on_delete=models.CASCADE, related_name="settings")
-    currency = models.CharField(max_length=3, default="USD")
+    currency = models.CharField(max_length=3, default="ETB")
     # Percentage with 2 dp (e.g. 15.00). Exact Decimal, never a float.
     tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     logo_url = models.URLField(blank=True)
     receipt_footer = models.CharField(max_length=512, blank=True)
     low_stock_default = models.PositiveIntegerField(default=5)
     language = models.CharField(max_length=8, default="en")
-    timezone = models.CharField(max_length=64, default="UTC")
+    timezone = models.CharField(max_length=64, default="Africa/Addis_Ababa")
 
     class Meta:
         verbose_name = "shop settings"

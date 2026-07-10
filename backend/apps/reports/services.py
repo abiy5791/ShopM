@@ -39,7 +39,7 @@ def _datetime_range(start: date, end: date) -> tuple[datetime, datetime]:
 
 def _currency(shop) -> str:
     settings = getattr(shop, "settings", None)
-    return settings.currency if settings else "USD"
+    return settings.currency if settings else "ETB"
 
 
 def _completed_sales(shop):

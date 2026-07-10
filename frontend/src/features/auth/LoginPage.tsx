@@ -163,20 +163,20 @@ export default function LoginPage() {
  *  seeded catalogue so it reads as a real sale, not lorem filler. */
 function ReceiptStrip() {
   const items = [
-    { q: 2, name: "Cola 500ml", amt: "3.00" },
-    { q: 1, name: "White Bread", amt: "2.50" },
-    { q: 1, name: "Whole Milk 1L", amt: "2.20" },
+    { q: 2, name: "Coca-Cola 300ml", amt: "Br50.00" },
+    { q: 1, name: "Dabo Bread", amt: "Br15.00" },
+    { q: 1, name: "Ambo Water 1L", amt: "Br30.00" },
   ];
   const totals = [
-    { label: "SUBTOTAL", amt: "7.70" },
-    { label: "CASH", amt: "10.00" },
-    { label: "CHANGE", amt: "2.30" },
+    { label: "SUBTOTAL", amt: "Br95.00" },
+    { label: "CASH", amt: "Br100.00" },
+    { label: "CHANGE", amt: "Br5.00" },
   ];
   return (
     <div className="w-full max-w-[300px] -rotate-1">
       <div className="rounded-sm bg-[#FAFAF7] p-5 font-mono text-[13px] leading-relaxed text-slate-800 shadow-2xl shadow-black/40">
         <div className="text-center">
-          <p className="font-semibold uppercase tracking-wide">Downtown Store</p>
+          <p className="font-semibold uppercase tracking-wide">Bole Mini-Mart</p>
           <p className="text-[11px] text-slate-500">Tue 14:32</p>
         </div>
         <Dashed />

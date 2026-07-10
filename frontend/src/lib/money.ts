@@ -4,6 +4,7 @@
  */
 
 const EXPONENTS: Record<string, number> = {
+  ETB: 2,
   USD: 2,
   EUR: 2,
   GBP: 2,
@@ -14,6 +15,20 @@ const EXPONENTS: Record<string, number> = {
   JPY: 0,
   UGX: 0,
   TZS: 2,
+};
+
+// Display symbols, mirroring the backend's CURRENCY_SYMBOLS (apps/common/money.py).
+// We format the symbol ourselves rather than relying on Intl's "narrowSymbol",
+// whose data varies by browser/runtime ICU (e.g. ETB can fall back to "ETB").
+const SYMBOLS: Record<string, string> = {
+  ETB: "Br",
+  USD: "$",
+  EUR: "€",
+  GBP: "£",
+  INR: "₹",
+  NGN: "₦",
+  KES: "KSh",
+  GHS: "₵",
 };
 
 export function exponent(currency: string): number {
@@ -35,19 +50,20 @@ export function minorToInput(minor: number, currency: string): string {
   return (minor / 10 ** exponent(currency)).toFixed(exponent(currency));
 }
 
-/** Format integer minor units, e.g. (1250, "USD") -> "$12.50". */
+/**
+ * Format integer minor units for display, mirroring the backend's format_money
+ * byte-for-byte: e.g. (1250, "ETB") -> "Br12.50", (1250, "USD") -> "$12.50".
+ * Grouping is fixed to en-US ("Br1,250.00") so receipts read the same everywhere
+ * and match the server; unknown currencies fall back to "12.34 ZZ".
+ */
 export function formatMoney(minor: number, currency: string): string {
   const exp = exponent(currency);
   const major = minor / 10 ** exp;
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: currency.toUpperCase(),
-      minimumFractionDigits: exp,
-      maximumFractionDigits: exp,
-    }).format(major);
-  } catch {
-    // Unknown ISO code — fall back to a plain number + code.
-    return `${major.toFixed(exp)} ${currency.toUpperCase()}`;
-  }
+  const code = currency.toUpperCase();
+  const number = new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: exp,
+    maximumFractionDigits: exp,
+  }).format(major);
+  const symbol = SYMBOLS[code];
+  return symbol ? `${symbol}${number}` : `${number} ${code}`;
 }
