@@ -11,32 +11,44 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Build wheels for the project + all runtime deps (with index available here).
 COPY pyproject.toml ./
 RUN pip install --upgrade pip \
-    && pip wheel --wheel-dir /wheels -e ".[prod]"
+    && pip wheel --wheel-dir /wheels ".[prod]"
 
 
 FROM python:3.12-slim AS runtime
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    DJANGO_SETTINGS_MODULE=config.settings.prod
+    DJANGO_SETTINGS_MODULE=config.settings.prod \
+    PYTHONPATH=/app
 
 WORKDIR /app
 
+# libpq5 for psycopg; postgresql-client provides pg_dump/pg_restore for backups.
+# The base image's client (>= the Postgres 16 server) can dump it — pg_dump only
+# refuses a server NEWER than the client, never an older/equal one.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libpq5 curl \
+    && apt-get install -y --no-install-recommends libpq5 postgresql-client curl \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -r shopm && useradd -r -g shopm -d /app shopm
 
-COPY pyproject.toml ./
+# Install everything from the pre-built wheels — no index, no build step. The
+# project wheel is metadata-only (py-modules=[]); the app code below runs via
+# PYTHONPATH=/app.
 COPY --from=builder /wheels /wheels
-RUN pip install --no-index --find-links=/wheels -e ".[prod]" \
+RUN pip install --no-index --find-links=/wheels "shopm-backend[prod]" \
     && rm -rf /wheels
 
 COPY . .
 COPY docker/entrypoint.prod.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh && chown -R shopm:shopm /app
+# Pre-create the mount points so Docker seeds the named volumes with shopm's
+# ownership (a fresh volume inherits the image dir's owner). Without this the
+# non-root user can't write collected static / media / backups.
+RUN mkdir -p /app/staticfiles /app/media /app/backups \
+    && chmod +x /entrypoint.sh \
+    && chown -R shopm:shopm /app
 
 USER shopm
 EXPOSE 8000

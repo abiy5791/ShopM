@@ -58,6 +58,13 @@ services:
     depends_on:
       - backend
       - redis
+    # The backend image's HTTP healthcheck doesn't fit a Celery worker; ping it instead.
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A config inspect ping -t 10 >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped
 
   beat:
@@ -70,6 +77,9 @@ services:
     depends_on:
       - backend
       - redis
+    # Beat has no ping endpoint; the inherited HTTP check is meaningless here.
+    healthcheck:
+      disable: true
     restart: unless-stopped
 
   frontend:
