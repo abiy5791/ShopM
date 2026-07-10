@@ -6,6 +6,10 @@ from .base import REST_FRAMEWORK, env
 DEBUG = env.bool("DJANGO_DEBUG", default=True)
 ALLOWED_HOSTS = ["*"]
 
+# Allow any local origin in dev — the Vite dev server hops ports (5173, 5174, …)
+# when another project already holds one. Prod stays strict (see settings/prod.py).
+CORS_ALLOW_ALL_ORIGINS = True
+
 # Browsable API is handy in dev.
 REST_FRAMEWORK = {
     **REST_FRAMEWORK,
