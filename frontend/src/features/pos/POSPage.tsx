@@ -1,4 +1,4 @@
-import { Minus, Plus, ScanLine, Search, Trash2, WifiOff } from "lucide-react";
+import { AlertTriangle, Minus, Plus, ScanLine, Search, Trash2, WifiOff } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -27,10 +27,20 @@ import { useAuthStore } from "@/lib/auth";
 import { formatMoney, parseMoney } from "@/lib/money";
 import type { PaymentInput, ReceiptData, SalePayload } from "@/types";
 
-import { checkout, usePendingSync, usePosCatalog, useActiveShop } from "./api";
-import { type CartLine, cartSubtotal, cartTax, cartTotal, useCartStore } from "./cartStore";
+import { checkout, stockShortages, usePendingSync, usePosCatalog, useActiveShop } from "./api";
+import {
+  type AddResult,
+  type CartLine,
+  cartShortages,
+  cartSubtotal,
+  cartTax,
+  cartTotal,
+  useCartStore,
+} from "./cartStore";
+import { FailedSalesDialog } from "./FailedSalesDialog";
 import { PaymentDialog } from "./PaymentDialog";
 import { Receipt } from "./Receipt";
+import type { Product } from "@/types";
 
 export default function POSPage() {
   const shop = useActiveShop();
@@ -40,7 +50,7 @@ export default function POSPage() {
   const taxRate = Number(shop?.tax_rate ?? "0");
 
   const { products, offline, isLoading } = usePosCatalog();
-  const { pending, online, refresh: refreshPendingSync } = usePendingSync();
+  const { pending, failed, online, refresh: refreshPendingSync } = usePendingSync();
 
   const cart = useCartStore();
   const ensureShop = useCartStore((s) => s.ensureShop);
@@ -48,12 +58,20 @@ export default function POSPage() {
     ensureShop(shopId);
   }, [shopId, ensureShop]);
 
+  // Keep cart lines' known stock in step with the (auto-refreshing) catalog.
+  const syncStock = useCartStore((s) => s.syncStock);
+  useEffect(() => {
+    if (products.length > 0) syncStock(products);
+  }, [products, syncStock]);
+
   const customers = useCustomers();
   const [customerId, setCustomerId] = useState("none");
 
   const [query, setQuery] = useState("");
+  const [hideOutOfStock, setHideOutOfStock] = useState(false);
   const [discountInput, setDiscountInput] = useState("");
   const [payOpen, setPayOpen] = useState(false);
+  const [failedOpen, setFailedOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -62,11 +80,13 @@ export default function POSPage() {
   const subtotal = cartSubtotal(cart.lines);
   const tax = cart.taxEnabled ? cartTax(cart.lines, discount, taxRate) : 0;
   const total = cartTotal(cart.lines, discount, taxRate, cart.taxEnabled);
+  const shortages = cartShortages(cart.lines);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return products.slice(0, 50);
-    return products
+    const visible = hideOutOfStock ? products.filter((p) => p.stock_cached > 0) : products;
+    if (!q) return visible.slice(0, 50);
+    return visible
       .filter(
         (p) =>
           p.name.toLowerCase().includes(q) ||
@@ -74,14 +94,23 @@ export default function POSPage() {
           p.barcode.toLowerCase().includes(q),
       )
       .slice(0, 50);
-  }, [products, query]);
+  }, [products, query, hideOutOfStock]);
+
+  function addToCart(product: Product) {
+    const result: AddResult = cart.add(product);
+    if (result === "out-of-stock") {
+      toast.error(`${product.name} is out of stock.`);
+    } else if (result === "at-stock-limit") {
+      toast.warning(`Only ${product.stock_cached} of ${product.name} in stock.`);
+    }
+    return result;
+  }
 
   function onSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key !== "Enter") return;
     const q = query.trim().toLowerCase();
     const exact = products.find((p) => p.barcode.toLowerCase() === q || p.sku.toLowerCase() === q);
-    if (exact) {
-      cart.add(exact);
+    if (exact && addToCart(exact) === "added") {
       setQuery("");
     }
   }
@@ -136,8 +165,22 @@ export default function POSPage() {
       setCustomerId("none");
       if (!result.synced) await refreshPendingSync(); // reflect the new queued sale immediately
       toast.success(result.synced ? "Sale completed" : "Saved offline — will sync when online");
-    } catch {
-      toast.error("Checkout failed. Please review and try again.");
+    } catch (err) {
+      const short = stockShortages(err);
+      if (short) {
+        // Update the cart's known stock to the server's authoritative numbers,
+        // close the payment dialog, and point the cashier at the lines to fix.
+        cart.applyServerStock(
+          Object.fromEntries(Object.entries(short).map(([id, s]) => [id, s.available])),
+        );
+        setPayOpen(false);
+        const lines = Object.values(short)
+          .map((s) => `${s.name}: only ${s.available} left`)
+          .join("; ");
+        toast.error(`Not enough stock — ${lines}. Adjust the highlighted items.`);
+      } else {
+        toast.error("Checkout failed. Please review and try again.");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -160,6 +203,14 @@ export default function POSPage() {
               onKeyDown={onSearchKeyDown}
             />
           </div>
+          <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={hideOutOfStock}
+              onChange={(e) => setHideOutOfStock(e.target.checked)}
+            />
+            Hide out of stock
+          </label>
           {!online && (
             <Badge variant="destructive" className="gap-1">
               <WifiOff className="h-3 w-3" /> Offline
@@ -169,6 +220,18 @@ export default function POSPage() {
             <Badge variant="accent" title="Sales waiting to sync">
               {pending} pending sync
             </Badge>
+          )}
+          {failed > 0 && (
+            <button
+              type="button"
+              onClick={() => setFailedOpen(true)}
+              className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              title="Sales the server rejected — review them"
+            >
+              <Badge variant="destructive" className="gap-1">
+                <AlertTriangle className="h-3 w-3" /> {failed} failed
+              </Badge>
+            </button>
           )}
         </div>
 
@@ -189,20 +252,40 @@ export default function POSPage() {
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
-              {filtered.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => cart.add(p)}
-                  className="flex flex-col rounded-md border bg-card p-2.5 text-left transition-colors hover:border-accent hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <span className="line-clamp-2 text-sm font-medium">{p.name}</span>
-                  <span className="mt-0.5 font-mono text-xs text-muted-foreground">{p.sku}</span>
-                  <span className="mt-auto pt-1 font-mono text-sm font-semibold tabular-nums">
-                    {formatMoney(p.selling_price, currency)}
-                  </span>
-                </button>
-              ))}
+              {filtered.map((p) => {
+                const out = p.stock_cached <= 0;
+                const low = !out && p.stock_cached <= p.min_stock_alert;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => addToCart(p)}
+                    disabled={out}
+                    className="flex flex-col rounded-md border bg-card p-2.5 text-left transition-colors hover:border-accent hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-border disabled:hover:bg-card"
+                  >
+                    <span className="line-clamp-2 text-sm font-medium">{p.name}</span>
+                    <span className="mt-0.5 font-mono text-xs text-muted-foreground">{p.sku}</span>
+                    <span className="mt-auto flex items-end justify-between gap-1 pt-1">
+                      <span className="font-mono text-sm font-semibold tabular-nums">
+                        {formatMoney(p.selling_price, currency)}
+                      </span>
+                      {out ? (
+                        <span className="text-[11px] font-medium text-destructive">
+                          Out of stock
+                        </span>
+                      ) : low ? (
+                        <span className="text-[11px] font-medium text-amber-600 dark:text-amber-500">
+                          {p.stock_cached} left
+                        </span>
+                      ) : (
+                        <span className="text-[11px] tabular-nums text-muted-foreground">
+                          {p.stock_cached} in stock
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           )}
         </Card>
@@ -274,6 +357,16 @@ export default function POSPage() {
             </div>
           </div>
 
+          {shortages.length > 0 && (
+            <p role="alert" className="flex items-start gap-1.5 text-xs text-destructive">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>
+                Not enough stock for{" "}
+                {shortages.map((l) => `${l.name} (${l.stock} left)`).join(", ")}. Lower the quantity
+                to continue.
+              </span>
+            </p>
+          )}
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -285,7 +378,7 @@ export default function POSPage() {
             </Button>
             <Button
               className="flex-1"
-              disabled={cart.lines.length === 0 || total < 0}
+              disabled={cart.lines.length === 0 || total < 0 || shortages.length > 0}
               onClick={() => setPayOpen(true)}
             >
               Charge
@@ -302,6 +395,13 @@ export default function POSPage() {
         submitting={submitting}
         allowCredit={customerId !== "none"}
         onConfirm={handleConfirm}
+      />
+
+      <FailedSalesDialog
+        open={failedOpen}
+        onOpenChange={setFailedOpen}
+        currency={currency}
+        onChanged={refreshPendingSync}
       />
 
       <Dialog open={Boolean(receipt)} onOpenChange={(o) => !o && setReceipt(null)}>
@@ -325,6 +425,8 @@ export default function POSPage() {
 function CartRow({ line, currency }: { line: CartLine; currency: string }) {
   const setQty = useCartStore((s) => s.setQty);
   const remove = useCartStore((s) => s.remove);
+  const over = line.quantity > line.stock;
+  const atLimit = line.quantity >= line.stock;
   return (
     <div className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/40">
       <div className="min-w-0 flex-1">
@@ -332,21 +434,30 @@ function CartRow({ line, currency }: { line: CartLine; currency: string }) {
         <p className="font-mono text-xs text-muted-foreground">
           {formatMoney(line.unitPrice, currency)} each
         </p>
+        {over && <p className="text-xs font-medium text-destructive">Only {line.stock} in stock</p>}
       </div>
       <div className="flex items-center gap-1">
         <Button
           variant="outline"
           size="icon"
           className="h-7 w-7"
+          aria-label={`Remove one ${line.name}`}
           onClick={() => setQty(line.productId, line.quantity - 1)}
         >
           <Minus className="h-3 w-3" />
         </Button>
-        <span className="w-7 text-center font-mono text-sm tabular-nums">{line.quantity}</span>
+        <span
+          className={`w-7 text-center font-mono text-sm tabular-nums ${over ? "text-destructive" : ""}`}
+        >
+          {line.quantity}
+        </span>
         <Button
           variant="outline"
           size="icon"
           className="h-7 w-7"
+          aria-label={`Add one ${line.name}`}
+          disabled={atLimit}
+          title={atLimit ? `Only ${line.stock} in stock` : undefined}
           onClick={() => setQty(line.productId, line.quantity + 1)}
         >
           <Plus className="h-3 w-3" />

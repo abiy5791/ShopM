@@ -8,7 +8,9 @@ import {
   cacheProducts,
   enqueueSale,
   getCachedProducts,
+  listFailed,
   listOutbox,
+  moveToFailed,
   type OutboxEntry,
   removeFromOutbox,
 } from "@/lib/offline";
@@ -17,6 +19,34 @@ import type { Paginated, Product, ReceiptData, Sale, SalePayload, Shop } from "@
 /** A network error (no response) means we're offline — distinct from a 4xx/5xx. */
 export function isNetworkError(err: unknown): boolean {
   return err instanceof AxiosError && !err.response;
+}
+
+/** Shape of the server's error envelope (plan §9): {detail, code, fields}. */
+export interface ApiErrorEnvelope {
+  detail?: string;
+  code?: string;
+  fields?: Record<string, unknown>;
+}
+
+export function apiErrorEnvelope(err: unknown): ApiErrorEnvelope | null {
+  if (err instanceof AxiosError && err.response?.data && typeof err.response.data === "object") {
+    return err.response.data as ApiErrorEnvelope;
+  }
+  return null;
+}
+
+/** Per-product shortage info from an insufficient_stock rejection. */
+export interface StockShortage {
+  name: string;
+  sku: string;
+  requested: number;
+  available: number;
+}
+
+export function stockShortages(err: unknown): Record<string, StockShortage> | null {
+  const envelope = apiErrorEnvelope(err);
+  if (envelope?.code !== "insufficient_stock" || !envelope.fields) return null;
+  return envelope.fields as unknown as Record<string, StockShortage>;
 }
 
 /**
@@ -132,24 +162,27 @@ export async function syncOutbox(shopId: string): Promise<number> {
       synced += 1;
     } catch (err) {
       if (isNetworkError(err)) break; // still offline — stop, retry later
-      // A non-network error (e.g. the sale was rejected): drop it so we don't
-      // loop forever. It stays auditable in the local receipt already printed.
-      await removeFromOutbox(entry.client_uuid);
+      // The server rejected the sale (e.g. stock ran out while offline). Keep
+      // it in the failed store for review — never silently drop a rung-up sale.
+      const envelope = apiErrorEnvelope(err);
+      await moveToFailed(entry, envelope?.detail ?? "The server rejected this sale.");
     }
   }
   return synced;
 }
 
-/** Tracks the pending-sync count and drains the outbox when back online. */
+/** Tracks the pending-sync and failed counts; drains the outbox when back online. */
 export function usePendingSync() {
   const shopId = useAuthStore((s) => s.activeShopId);
   const [pending, setPending] = useState(0);
+  const [failed, setFailed] = useState(0);
   const [online, setOnline] = useState(navigator.onLine);
 
   const refresh = useCallback(async () => {
     if (!shopId) return;
     const entries: OutboxEntry[] = await listOutbox(shopId);
     setPending(entries.length);
+    setFailed((await listFailed(shopId)).length);
   }, [shopId]);
 
   const drain = useCallback(async () => {
@@ -175,5 +208,5 @@ export function usePendingSync() {
     };
   }, [drain, refresh]);
 
-  return { pending, online, drain, refresh };
+  return { pending, failed, online, drain, refresh };
 }
