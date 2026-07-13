@@ -36,6 +36,20 @@ class ShopSerializer(serializers.ModelSerializer):
         return None
 
 
+class ShopWriteSerializer(serializers.ModelSerializer):
+    """Create/update a branch (v2 plan §3). Owner-only; owner is set server-side."""
+
+    class Meta:
+        model = Shop
+        fields = ["name", "address", "phone"]
+
+    def validate_name(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Give the branch a name.")
+        return value
+
+
 class ShopSettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = ShopSettings
