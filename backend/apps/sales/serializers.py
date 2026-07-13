@@ -17,7 +17,8 @@ class SaleItemInputSerializer(serializers.Serializer):
 
 class PaymentInputSerializer(serializers.Serializer):
     method = serializers.ChoiceField(choices=Payment.Method.choices)
-    amount = serializers.IntegerField(min_value=0)
+    # A payment of zero is meaningless; fully-on-credit sales send no payments.
+    amount = serializers.IntegerField(min_value=1)
 
 
 class SaleCreateSerializer(serializers.Serializer):

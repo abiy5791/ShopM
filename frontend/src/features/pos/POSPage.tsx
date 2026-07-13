@@ -187,7 +187,7 @@ export default function POSPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-7rem)] flex-col gap-4 lg:flex-row">
+    <div className="flex flex-col gap-4 lg:h-[calc(100vh-7rem)] lg:flex-row">
       {/* Catalogue */}
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="mb-3 flex items-center gap-2">

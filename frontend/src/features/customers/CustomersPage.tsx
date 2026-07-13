@@ -25,12 +25,18 @@ import { CustomerFormDialog } from "./CustomerFormDialog";
 export default function CustomersPage() {
   const shop = useActiveShop();
   const currency = shop?.currency ?? "ETB";
-  const [search, setSearch] = useState("");
+  const [search, setSearchRaw] = useState("");
+  const [page, setPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Customer | undefined>(undefined);
   const [detail, setDetail] = useState<Customer | null>(null);
 
-  const { data, isLoading, isError } = useCustomers(search);
+  function setSearch(value: string) {
+    setSearchRaw(value);
+    setPage(1); // a new search always starts from the first page
+  }
+
+  const { data, isLoading, isError, refetch } = useCustomers(search, page);
   const rows = data?.results ?? [];
 
   return (
@@ -127,9 +133,38 @@ export default function CustomersPage() {
               {isError ? "Couldn't load customers." : "No customers yet"}
             </p>
             <p className="text-xs text-muted-foreground">Add a customer to track credit.</p>
+            {isError && (
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                Retry
+              </Button>
+            )}
           </div>
         )}
       </Card>
+
+      {data && data.count > 0 && (
+        <div className="mt-3 flex items-center justify-between text-sm text-muted-foreground">
+          <span>{data.count} total</span>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!data.previous}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!data.next}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
 
       <CustomerFormDialog open={formOpen} onOpenChange={setFormOpen} customer={editing} />
       <CustomerDetailDialog

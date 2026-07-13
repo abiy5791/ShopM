@@ -147,11 +147,13 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <div className="mt-6 rounded-md border border-dashed px-3 py-2.5 text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">Demo</span> — sign in with{" "}
-            <span className="font-mono">owner@shopm.local</span> ·{" "}
-            <span className="font-mono">password123</span>
-          </div>
+          {import.meta.env.DEV && (
+            <div className="mt-6 rounded-md border border-dashed px-3 py-2.5 text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">Demo</span> — sign in with{" "}
+              <span className="font-mono">owner@shopm.local</span> ·{" "}
+              <span className="font-mono">password123</span>
+            </div>
+          )}
         </div>
       </main>
     </div>

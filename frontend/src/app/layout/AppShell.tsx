@@ -8,6 +8,7 @@ import { NotificationBell } from "@/features/notifications/NotificationBell";
 import { useAuthStore } from "@/lib/auth";
 import { useApplyTheme } from "@/lib/theme";
 
+import { MobileNav } from "./MobileNav";
 import { ShopSwitcher } from "./ShopSwitcher";
 import { Sidebar } from "./Sidebar";
 import { UserMenu } from "./UserMenu";
@@ -26,7 +27,10 @@ export function AppShell() {
 
   const headerBar = (
     <header className="flex h-14 items-center justify-between border-b bg-card px-4">
-      <ShopSwitcher />
+      <div className="flex items-center gap-1">
+        <MobileNav />
+        <ShopSwitcher />
+      </div>
       <div className="flex items-center gap-1">
         <ThemeToggle />
         <NotificationBell />

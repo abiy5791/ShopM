@@ -11,6 +11,7 @@ import {
 import { type ChangeEvent, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -60,8 +61,9 @@ export default function ProductsPage() {
   const [editing, setEditing] = useState<Product | undefined>(undefined);
   const [adjusting, setAdjusting] = useState<Product | null>(null);
   const [historyFor, setHistoryFor] = useState<Product | null>(null);
+  const [deleting, setDeleting] = useState<Product | null>(null);
 
-  const { data, isLoading, isError } = useProducts({ search, lowStock, page });
+  const { data, isLoading, isError, refetch } = useProducts({ search, lowStock, page });
   const rows = data?.results ?? [];
   const pageSize = 25;
   const from = data && data.count > 0 ? (page - 1) * pageSize + 1 : 0;
@@ -109,12 +111,13 @@ export default function ProductsPage() {
   }
 
   async function handleDelete(p: Product) {
-    if (!window.confirm(`Delete "${p.name}"? This can be undone by an admin.`)) return;
     try {
       await deleteProduct.mutateAsync(p.id);
       toast.success("Product deleted");
     } catch {
       toast.error("Could not delete product.");
+    } finally {
+      setDeleting(null);
     }
   }
 
@@ -241,7 +244,7 @@ export default function ProductsPage() {
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className="text-destructive focus:text-destructive"
-                            onClick={() => handleDelete(p)}
+                            onClick={() => setDeleting(p)}
                           >
                             Delete
                           </DropdownMenuItem>
@@ -263,6 +266,11 @@ export default function ProductsPage() {
             <p className="text-xs text-muted-foreground">
               {isOwner ? "Add your first product to get started." : "Nothing matches your filters."}
             </p>
+            {isError && (
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                Retry
+              </Button>
+            )}
           </div>
         )}
       </Card>
@@ -300,6 +308,14 @@ export default function ProductsPage() {
           <TransactionsDialog
             product={historyFor}
             onOpenChange={(o) => !o && setHistoryFor(null)}
+          />
+          <ConfirmDialog
+            open={deleting !== null}
+            onOpenChange={(o) => !o && setDeleting(null)}
+            title={`Delete ${deleting?.name ?? "product"}?`}
+            description="The product leaves the catalog but its sales history is kept. An admin can restore it."
+            confirmLabel="Delete product"
+            onConfirm={() => deleting && handleDelete(deleting)}
           />
         </>
       )}

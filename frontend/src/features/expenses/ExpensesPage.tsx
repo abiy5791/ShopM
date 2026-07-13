@@ -2,6 +2,7 @@ import { Plus, Receipt, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -25,17 +26,19 @@ export default function ExpensesPage() {
   const currency = shop?.currency ?? "ETB";
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState(false);
-  const { data, isLoading, isError } = useExpenses(page);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const { data, isLoading, isError, refetch } = useExpenses(page);
   const del = useDeleteExpense();
   const rows = data?.results ?? [];
 
   async function handleDelete(id: string) {
-    if (!window.confirm("Delete this expense?")) return;
     try {
       await del.mutateAsync(id);
       toast.success("Expense deleted");
     } catch {
       toast.error("Could not delete expense.");
+    } finally {
+      setDeleting(null);
     }
   }
 
@@ -104,7 +107,7 @@ export default function ExpensesPage() {
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 text-muted-foreground"
-                      onClick={() => handleDelete(e.id)}
+                      onClick={() => setDeleting(e.id)}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
@@ -121,6 +124,11 @@ export default function ExpensesPage() {
               {isError ? "Couldn't load expenses." : "No expenses yet"}
             </p>
             <p className="text-xs text-muted-foreground">Record your first expense.</p>
+            {isError && (
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                Retry
+              </Button>
+            )}
           </div>
         )}
       </Card>
@@ -150,6 +158,14 @@ export default function ExpensesPage() {
       )}
 
       <ExpenseFormDialog open={open} onOpenChange={setOpen} currency={currency} />
+      <ConfirmDialog
+        open={deleting !== null}
+        onOpenChange={(o) => !o && setDeleting(null)}
+        title="Delete this expense?"
+        description="It disappears from expense totals and reports. An admin can restore it."
+        confirmLabel="Delete expense"
+        onConfirm={() => deleting && handleDelete(deleting)}
+      />
     </div>
   );
 }

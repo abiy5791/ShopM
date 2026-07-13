@@ -2,6 +2,7 @@ import { Ban, Receipt } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,22 +30,19 @@ export default function SalesPage() {
     (s) => s.memberships.find((m) => m.shop_id === s.activeShopId)?.role === "owner",
   );
   const [page, setPage] = useState(1);
-  const { data, isLoading, isError } = useSales(page);
+  const [voiding, setVoiding] = useState<Sale | null>(null);
+  const { data, isLoading, isError, refetch } = useSales(page);
   const voidSale = useVoidSale();
   const rows = data?.results ?? [];
 
   async function handleVoid(sale: Sale) {
-    if (
-      !window.confirm(
-        `Void this ${formatMoney(sale.total, currency)} sale? Stock will be restored.`,
-      )
-    )
-      return;
     try {
       await voidSale.mutateAsync(sale.id);
       toast.success("Sale voided — stock restored");
     } catch {
       toast.error("Could not void this sale.");
+    } finally {
+      setVoiding(null);
     }
   }
 
@@ -104,7 +102,7 @@ export default function SalesPage() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                          onClick={() => handleVoid(sale)}
+                          onClick={() => setVoiding(sale)}
                           aria-label="Void sale"
                         >
                           <Ban className="h-3.5 w-3.5" />
@@ -124,6 +122,11 @@ export default function SalesPage() {
               {isError ? "Couldn't load sales." : "No sales yet"}
             </p>
             <p className="text-xs text-muted-foreground">Sales made at the POS will appear here.</p>
+            {isError && (
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                Retry
+              </Button>
+            )}
           </div>
         )}
       </Card>
@@ -151,6 +154,15 @@ export default function SalesPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={voiding !== null}
+        onOpenChange={(o) => !o && setVoiding(null)}
+        title={voiding ? `Void this ${formatMoney(voiding.total, currency)} sale?` : "Void sale?"}
+        description="The sale is marked voided and its stock is returned to inventory. This is recorded in the activity log."
+        confirmLabel="Void sale"
+        onConfirm={() => voiding && handleVoid(voiding)}
+      />
     </div>
   );
 }

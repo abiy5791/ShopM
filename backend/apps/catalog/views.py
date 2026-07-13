@@ -67,7 +67,14 @@ class ProductViewSet(ShopScopedModelViewSet):
         )
 
     def perform_create(self, serializer):
-        product = serializer.save(shop=self.active_shop)
+        extra = {}
+        # New products fall back to the shop's low-stock default (v2 plan §5)
+        # so low-stock alerts work without per-product setup.
+        if "min_stock_alert" not in serializer.validated_data:
+            settings = getattr(self.active_shop, "settings", None)
+            if settings is not None:
+                extra["min_stock_alert"] = settings.low_stock_default
+        product = serializer.save(shop=self.active_shop, **extra)
         self._log("product.create", product)
 
     def perform_update(self, serializer):

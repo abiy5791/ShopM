@@ -32,7 +32,7 @@ export default function PurchasesPage() {
   const currency = shop?.currency ?? "ETB";
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState(false);
-  const { data, isLoading, isError } = usePurchases(page);
+  const { data, isLoading, isError, refetch } = usePurchases(page);
   const rows = data?.results ?? [];
 
   return (
@@ -99,6 +99,11 @@ export default function PurchasesPage() {
               {isError ? "Couldn't load purchases." : "No purchases yet"}
             </p>
             <p className="text-xs text-muted-foreground">Record your first stock purchase.</p>
+            {isError && (
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                Retry
+              </Button>
+            )}
           </div>
         )}
       </Card>
