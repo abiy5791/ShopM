@@ -13,6 +13,7 @@ import {
 import { useAuthStore } from "@/lib/auth";
 import { type FailedSaleEntry, listFailed, removeFromFailed, requeueFailed } from "@/lib/offline";
 import { formatMoney } from "@/lib/money";
+import { formatDateTime } from "@/lib/utils";
 
 import { syncOutbox } from "./api";
 
@@ -102,7 +103,7 @@ export function FailedSalesDialog({ open, onOpenChange, currency, onChanged }: P
                         {formatMoney(entry.receipt.total, currency)}
                         <span className="ml-2 font-normal text-muted-foreground">
                           {itemCount} {itemCount === 1 ? "item" : "items"} ·{" "}
-                          {new Date(entry.created_at).toLocaleString()}
+                          {formatDateTime(entry.created_at)}
                         </span>
                       </p>
                       <p className="mt-1 text-xs text-destructive">{entry.error}</p>

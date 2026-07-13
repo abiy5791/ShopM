@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useAuthStore } from "@/lib/auth";
+import { formatDateTime } from "@/lib/utils";
 import type { StaffMember } from "@/types";
 
 import { useStaff } from "./api";
@@ -106,7 +107,7 @@ export function StaffTab() {
                       )}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {member.last_login ? new Date(member.last_login).toLocaleString() : "Never"}
+                      {member.last_login ? formatDateTime(member.last_login) : "Never"}
                     </TableCell>
                     <TableCell className="text-right">
                       {!isSelf && (

@@ -280,24 +280,26 @@ export default function ProductsPage() {
           <span>
             {from}–{to} of {data.count}
           </span>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!data.previous}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!data.next}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              Next
-            </Button>
-          </div>
+          {(data.previous || data.next) && (
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!data.previous}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!data.next}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          )}
         </div>
       )}
 

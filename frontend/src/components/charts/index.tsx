@@ -325,10 +325,12 @@ export function DonutChart({
   data,
   currency,
   height = 220,
+  totalLabel = "Total",
 }: {
   data: { name: string; value: number; color?: string }[];
   currency: string;
   height?: number;
+  totalLabel?: string;
 }) {
   const total = data.reduce((s, d) => s + d.value, 0);
   if (!data.length || total === 0) return <EmptyChart height={height} />;
@@ -381,7 +383,7 @@ export function DonutChart({
           </li>
         ))}
         <li className="flex items-center justify-between gap-2 border-t pt-1.5 font-medium">
-          <span>Total</span>
+          <span>{totalLabel}</span>
           <span className="font-mono tabular-nums">{formatMoney(total, currency)}</span>
         </li>
       </ul>

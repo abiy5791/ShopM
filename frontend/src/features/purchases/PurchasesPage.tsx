@@ -111,24 +111,26 @@ export default function PurchasesPage() {
       {data && data.count > 0 && (
         <div className="mt-3 flex items-center justify-between text-sm text-muted-foreground">
           <span>{data.count} total</span>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!data.previous}
-              onClick={() => setPage((p) => p - 1)}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!data.next}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              Next
-            </Button>
-          </div>
+          {(data.previous || data.next) && (
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!data.previous}
+                onClick={() => setPage((p) => p - 1)}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!data.next}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          )}
         </div>
       )}
 

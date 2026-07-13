@@ -1,3 +1,4 @@
+import { formatDateTime } from "@/lib/utils";
 import { ScrollText, Search } from "lucide-react";
 import { useState } from "react";
 
@@ -28,7 +29,7 @@ import { type ActivityFilters, useActivity } from "./api";
 
 const LEVEL_VARIANT = {
   info: "secondary",
-  warn: "accent",
+  warn: "warning",
   critical: "destructive",
 } as const;
 
@@ -122,7 +123,7 @@ export default function ActivityPage() {
               rows.map((row) => (
                 <TableRow key={row.id}>
                   <TableCell className="whitespace-nowrap font-mono text-xs tabular-nums text-muted-foreground">
-                    {new Date(row.created_at).toLocaleString()}
+                    {formatDateTime(row.created_at)}
                   </TableCell>
                   <TableCell className="font-medium">{row.action}</TableCell>
                   <TableCell className="text-muted-foreground">{row.user_email ?? "—"}</TableCell>
@@ -147,24 +148,26 @@ export default function ActivityPage() {
       {data && data.count > 0 && (
         <div className="mt-3 flex items-center justify-between text-sm text-muted-foreground">
           <span>{data.count} entries</span>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!data.previous}
-              onClick={() => setFilters((f) => ({ ...f, page: (f.page ?? 1) - 1 }))}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!data.next}
-              onClick={() => setFilters((f) => ({ ...f, page: (f.page ?? 1) + 1 }))}
-            >
-              Next
-            </Button>
-          </div>
+          {(data.previous || data.next) && (
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!data.previous}
+                onClick={() => setFilters((f) => ({ ...f, page: (f.page ?? 1) - 1 }))}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!data.next}
+                onClick={() => setFilters((f) => ({ ...f, page: (f.page ?? 1) + 1 }))}
+              >
+                Next
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>

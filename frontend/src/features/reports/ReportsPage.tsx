@@ -208,7 +208,9 @@ function ReportCharts({ report }: { report: ReportData }) {
             <TrendAreaChart data={series} dataKey="total" name="Revenue" currency={currency} />
           </ChartCard>
         </div>
-        <ChartCard title="By payment method">
+        {/* Money actually received — differs from Total sales when part of a
+            sale is on customer credit. */}
+        <ChartCard title="Payments received">
           <DonutChart
             data={(report.by_method ?? []).map((m) => ({
               name: METHOD_LABELS[m.method] ?? m.method,
@@ -216,6 +218,7 @@ function ReportCharts({ report }: { report: ReportData }) {
               color: METHOD_COLORS[m.method],
             }))}
             currency={currency}
+            totalLabel="Total received"
           />
         </ChartCard>
       </div>

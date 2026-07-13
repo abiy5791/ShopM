@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useActiveShop } from "@/features/pos/api";
 import { useAuthStore } from "@/lib/auth";
 import { formatMoney } from "@/lib/money";
+import { formatDateTime } from "@/lib/utils";
 
 import { useDashboard } from "./api";
 
@@ -76,6 +77,7 @@ export default function DashboardPage() {
           value={data ? formatMoney(data.cash_balance, currency) : undefined}
           sub="All time: cash received − expenses & purchases"
           loading={isLoading}
+          negative={Boolean(data && data.cash_balance < 0)}
         />
         <Kpi
           label="Low-stock items"
@@ -119,9 +121,7 @@ export default function DashboardPage() {
               <ul className="space-y-1.5">
                 {data.recent_sales.map((s) => (
                   <li key={s.id} className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">
-                      {new Date(s.created_at).toLocaleString()}
-                    </span>
+                    <span className="text-muted-foreground">{formatDateTime(s.created_at)}</span>
                     <span className="font-mono tabular-nums">{formatMoney(s.total, currency)}</span>
                   </li>
                 ))}
@@ -143,6 +143,7 @@ function Kpi({
   sub,
   loading,
   spark,
+  negative = false,
 }: {
   label: string;
   icon: typeof Receipt;
@@ -150,6 +151,7 @@ function Kpi({
   sub?: string;
   loading: boolean;
   spark?: React.ReactNode;
+  negative?: boolean;
 }) {
   return (
     <Card>
@@ -161,7 +163,14 @@ function Kpi({
         {loading || value === undefined ? (
           <Skeleton className="h-8 w-24" />
         ) : (
-          <div className="font-mono text-2xl font-semibold tabular-nums">{value}</div>
+          <div
+            className={
+              "font-mono text-2xl font-semibold tabular-nums" +
+              (negative ? " text-destructive" : "")
+            }
+          >
+            {value}
+          </div>
         )}
         {sub && <p className="mt-1 text-xs text-muted-foreground">{sub}</p>}
         {spark && <div className="mt-2">{spark}</div>}

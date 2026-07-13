@@ -166,10 +166,20 @@ def sales_report(shop, *, period="daily", start=None, end=None) -> dict:
     summary_total = qs.aggregate(s=Sum("total"))["s"] or 0
     summary_count = qs.count()
     # Chart-ready series (v2 plan §4): one point per bucket + method breakdown.
+    # Daily granularity is zero-filled so the revenue chart shows quiet days
+    # instead of silently connecting across them; coarser buckets stay sparse.
     series = [
         {"date": str(g["bucket"])[:10], "total": g["total"] or 0, "count": g["count"]}
         for g in grouped
     ]
+    if period == "daily" and (end - start).days <= 366:
+        by_date = {p["date"]: p for p in series}
+        series = []
+        day = start
+        while day <= end:
+            key = str(day)
+            series.append(by_date.get(key, {"date": key, "total": 0, "count": 0}))
+            day += timedelta(days=1)
     by_method = [
         {"method": g["method"], "total": g["total"] or 0}
         for g in Payment.objects.filter(sale__in=qs)

@@ -37,11 +37,13 @@ export default function LoginPage() {
   const login = useLogin();
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Validate on submit only: onBlur flags "required" while people (or the
+  // browser's autofill) are still filling the form.
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({ resolver: zodResolver(schema), mode: "onBlur" });
+  } = useForm<FormValues>({ resolver: zodResolver(schema), mode: "onSubmit" });
 
   if (isAuthed) return <Navigate to="/" replace />;
 
@@ -165,20 +167,20 @@ export default function LoginPage() {
  *  seeded catalogue so it reads as a real sale, not lorem filler. */
 function ReceiptStrip() {
   const items = [
-    { q: 2, name: "Coca-Cola 300ml", amt: "Br50.00" },
-    { q: 1, name: "Dabo Bread", amt: "Br15.00" },
-    { q: 1, name: "Ambo Water 1L", amt: "Br30.00" },
+    { q: 1, name: "Habesha Kemis", amt: "Br3,500.00" },
+    { q: 2, name: "Netela Shawl", amt: "Br1,600.00" },
+    { q: 1, name: "Leather Belt", amt: "Br350.00" },
   ];
   const totals = [
-    { label: "SUBTOTAL", amt: "Br95.00" },
-    { label: "CASH", amt: "Br100.00" },
-    { label: "CHANGE", amt: "Br5.00" },
+    { label: "SUBTOTAL", amt: "Br5,450.00" },
+    { label: "CASH", amt: "Br5,500.00" },
+    { label: "CHANGE", amt: "Br50.00" },
   ];
   return (
     <div className="w-full max-w-[300px] -rotate-1">
       <div className="rounded-sm bg-[#FAFAF7] p-5 font-mono text-[13px] leading-relaxed text-slate-800 shadow-2xl shadow-black/40">
         <div className="text-center">
-          <p className="font-semibold uppercase tracking-wide">Bole Mini-Mart</p>
+          <p className="font-semibold uppercase tracking-wide">Fenet Boutique</p>
           <p className="text-[11px] text-slate-500">Tue 14:32</p>
         </div>
         <Dashed />

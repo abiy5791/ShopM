@@ -4,8 +4,6 @@ import { type ReactNode, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -16,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CompareBarChart } from "@/components/charts";
+import { type DateRange, QuickRangePicker } from "@/components/quick-range";
 import { formatMoney } from "@/lib/money";
 
 import { useOwnerDashboard, useShopComparison } from "./api";
@@ -55,6 +54,7 @@ export default function OwnerConsolePage() {
                   <Stat
                     label="Cash balance"
                     value={formatMoney(shop.cash_balance, shop.currency)}
+                    tone={shop.cash_balance < 0 ? "loss" : undefined}
                   />
                   <Stat
                     label="Low stock"
@@ -132,9 +132,8 @@ export default function OwnerConsolePage() {
 }
 
 function ComparisonCard() {
-  const [start, setStart] = useState("");
-  const [end, setEnd] = useState("");
-  const { data, isLoading } = useShopComparison(start, end);
+  const [range, setRange] = useState<DateRange>({ start: "", end: "" });
+  const { data, isLoading } = useShopComparison(range.start, range.end);
 
   return (
     <Card className="mt-4">
@@ -147,32 +146,7 @@ function ComparisonCard() {
             </span>
           )}
         </CardTitle>
-        <div className="flex items-end gap-2">
-          <div>
-            <Label htmlFor="cmp-start" className="text-xs">
-              From
-            </Label>
-            <Input
-              id="cmp-start"
-              type="date"
-              className="h-8"
-              value={start}
-              onChange={(e) => setStart(e.target.value)}
-            />
-          </div>
-          <div>
-            <Label htmlFor="cmp-end" className="text-xs">
-              To
-            </Label>
-            <Input
-              id="cmp-end"
-              type="date"
-              className="h-8"
-              value={end}
-              onChange={(e) => setEnd(e.target.value)}
-            />
-          </div>
-        </div>
+        <QuickRangePicker value={range} onChange={setRange} />
       </CardHeader>
       <CardContent className="p-0">
         {!isLoading && data && data.shops.length > 1 && (
@@ -267,7 +241,7 @@ function Stat({
       <p className="text-xs text-muted-foreground">{label}</p>
       <p
         className={
-          "font-mono text-lg font-semibold tabular-nums " +
+          "whitespace-nowrap font-mono text-lg font-semibold tabular-nums " +
           (tone === "profit" ? "text-accent" : tone === "loss" ? "text-destructive" : "")
         }
       >

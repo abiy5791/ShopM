@@ -19,6 +19,7 @@ import {
 import { useActiveShop } from "@/features/pos/api";
 import { useAuthStore } from "@/lib/auth";
 import { formatMoney } from "@/lib/money";
+import { formatDateTime } from "@/lib/utils";
 import type { Sale } from "@/types";
 
 import { useSales, useVoidSale } from "./api";
@@ -78,7 +79,7 @@ export default function SalesPage() {
               rows.map((sale) => (
                 <TableRow key={sale.id}>
                   <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
-                    {new Date(sale.created_at).toLocaleString()}
+                    {formatDateTime(sale.created_at)}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {sale.cashier_email ?? "—"}
@@ -86,7 +87,9 @@ export default function SalesPage() {
                   <TableCell className="text-muted-foreground">
                     {sale.customer_name ?? "Walk-in"}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">{sale.items.length}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {sale.items.reduce((units, item) => units + item.quantity, 0)}
+                  </TableCell>
                   <TableCell className="text-right font-mono tabular-nums">
                     {formatMoney(sale.total, currency)}
                   </TableCell>
@@ -134,24 +137,26 @@ export default function SalesPage() {
       {data && data.count > 0 && (
         <div className="mt-3 flex items-center justify-between text-sm text-muted-foreground">
           <span>{data.count} total</span>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!data.previous}
-              onClick={() => setPage((p) => p - 1)}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!data.next}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              Next
-            </Button>
-          </div>
+          {(data.previous || data.next) && (
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!data.previous}
+                onClick={() => setPage((p) => p - 1)}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!data.next}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          )}
         </div>
       )}
 

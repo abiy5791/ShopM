@@ -107,6 +107,7 @@ export default function ExpensesPage() {
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 text-muted-foreground"
+                      aria-label="Delete expense"
                       onClick={() => setDeleting(e.id)}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -136,24 +137,26 @@ export default function ExpensesPage() {
       {data && data.count > 0 && (
         <div className="mt-3 flex items-center justify-between text-sm text-muted-foreground">
           <span>{data.count} total</span>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!data.previous}
-              onClick={() => setPage((p) => p - 1)}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!data.next}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              Next
-            </Button>
-          </div>
+          {(data.previous || data.next) && (
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!data.previous}
+                onClick={() => setPage((p) => p - 1)}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!data.next}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
