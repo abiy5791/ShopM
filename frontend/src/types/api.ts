@@ -843,10 +843,21 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description GET /shops — the shops the current user can access (not shop-scoped). */
+        /**
+         * @description GET /shops — the shops the current user can access (not shop-scoped).
+         *     Owners can also create branches, edit theirs, and archive them (v2 plan §3).
+         *     Archiving is a soft-delete: the branch disappears from switchers but its
+         *     financial history survives.
+         */
         get: operations["shops_list"];
         put?: never;
-        post?: never;
+        /**
+         * @description GET /shops — the shops the current user can access (not shop-scoped).
+         *     Owners can also create branches, edit theirs, and archive them (v2 plan §3).
+         *     Archiving is a soft-delete: the branch disappears from switchers but its
+         *     financial history survives.
+         */
+        post: operations["shops_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -860,11 +871,127 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description GET /shops — the shops the current user can access (not shop-scoped). */
+        /**
+         * @description GET /shops — the shops the current user can access (not shop-scoped).
+         *     Owners can also create branches, edit theirs, and archive them (v2 plan §3).
+         *     Archiving is a soft-delete: the branch disappears from switchers but its
+         *     financial history survives.
+         */
         get: operations["shops_retrieve"];
         put?: never;
         post?: never;
+        /**
+         * @description GET /shops — the shops the current user can access (not shop-scoped).
+         *     Owners can also create branches, edit theirs, and archive them (v2 plan §3).
+         *     Archiving is a soft-delete: the branch disappears from switchers but its
+         *     financial history survives.
+         */
+        delete: operations["shops_destroy"];
+        options?: never;
+        head?: never;
+        /**
+         * @description GET /shops — the shops the current user can access (not shop-scoped).
+         *     Owners can also create branches, edit theirs, and archive them (v2 plan §3).
+         *     Archiving is a soft-delete: the branch disappears from switchers but its
+         *     financial history survives.
+         */
+        patch: operations["shops_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/staff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Owner-only staff management: create accounts, assign them to owned
+         *     branches, deactivate, and reset passwords. There is no destroy — accounts
+         *     are deactivated, never hard-deleted, so their audit trail survives.
+         */
+        get: operations["staff_list"];
+        put?: never;
+        /**
+         * @description Owner-only staff management: create accounts, assign them to owned
+         *     branches, deactivate, and reset passwords. There is no destroy — accounts
+         *     are deactivated, never hard-deleted, so their audit trail survives.
+         */
+        post: operations["staff_create"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staff/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Owner-only staff management: create accounts, assign them to owned
+         *     branches, deactivate, and reset passwords. There is no destroy — accounts
+         *     are deactivated, never hard-deleted, so their audit trail survives.
+         */
+        get: operations["staff_retrieve"];
+        put?: never;
+        post?: never;
+        /**
+         * @description Owner-only staff management: create accounts, assign them to owned
+         *     branches, deactivate, and reset passwords. There is no destroy — accounts
+         *     are deactivated, never hard-deleted, so their audit trail survives.
+         */
+        delete: operations["staff_destroy"];
+        options?: never;
+        head?: never;
+        /**
+         * @description Owner-only staff management: create accounts, assign them to owned
+         *     branches, deactivate, and reset passwords. There is no destroy — accounts
+         *     are deactivated, never hard-deleted, so their audit trail survives.
+         */
+        patch: operations["staff_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/staff/{id}/memberships": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Owner-only staff management: create accounts, assign them to owned
+         *     branches, deactivate, and reset passwords. There is no destroy — accounts
+         *     are deactivated, never hard-deleted, so their audit trail survives.
+         */
+        post: operations["staff_memberships_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staff/{id}/memberships/{membership_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * @description Owner-only staff management: create accounts, assign them to owned
+         *     branches, deactivate, and reset passwords. There is no destroy — accounts
+         *     are deactivated, never hard-deleted, so their audit trail survives.
+         */
+        delete: operations["staff_memberships_destroy"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1298,6 +1425,21 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["Shop"][];
         };
+        PaginatedStaffList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["Staff"][];
+        };
         PaginatedSupplierList: {
             /** @example 123 */
             count: number;
@@ -1364,6 +1506,20 @@ export interface components {
             low_stock_default?: number;
             language?: string;
             timezone?: string;
+        };
+        /** @description Create/update a branch (v2 plan §3). Owner-only; owner is set server-side. */
+        PatchedShopWriteRequest: {
+            name?: string;
+            address?: string;
+            phone?: string;
+        };
+        /** @description Partial update: profile fields, activation, or an owner-set new password. */
+        PatchedStaffUpdateRequest: {
+            full_name?: string;
+            /** Format: email */
+            email?: string;
+            is_active?: boolean;
+            password?: string;
         };
         PatchedSupplierRequest: {
             name?: string;
@@ -1519,6 +1675,12 @@ export interface components {
             value: number;
             money: boolean;
         };
+        /**
+         * @description * `owner` - Owner
+         *     * `cashier` - Cashier
+         * @enum {string}
+         */
+        RoleEnum: "owner" | "cashier";
         Sale: {
             /** Format: uuid */
             readonly id: string;
@@ -1602,6 +1764,57 @@ export interface components {
             timezone?: string;
             /** Format: date-time */
             readonly updated_at: string;
+        };
+        /** @description Create/update a branch (v2 plan §3). Owner-only; owner is set server-side. */
+        ShopWrite: {
+            name: string;
+            address?: string;
+            phone?: string;
+        };
+        /** @description Create/update a branch (v2 plan §3). Owner-only; owner is set server-side. */
+        ShopWriteRequest: {
+            name: string;
+            address?: string;
+            phone?: string;
+        };
+        /**
+         * @description A user managed by the calling owner. ``memberships`` only includes
+         *     branches the caller owns — assignments elsewhere are not their business.
+         */
+        Staff: {
+            /** Format: uuid */
+            readonly id: string;
+            /** Format: email */
+            readonly email: string;
+            readonly full_name: string;
+            readonly is_active: boolean;
+            /** Format: date-time */
+            readonly last_login: string | null;
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly memberships: {
+                [key: string]: unknown;
+            }[];
+        };
+        /** @description Owner creates a staff account with at least one branch assignment. */
+        StaffCreateRequest: {
+            full_name: string;
+            /** Format: email */
+            email: string;
+            password: string;
+            memberships: components["schemas"]["StaffMembershipInputRequest"][];
+        };
+        StaffMembershipInputRequest: {
+            /** Format: uuid */
+            shop: string;
+            role: components["schemas"]["RoleEnum"];
+        };
+        /** @description Partial update: profile fields, activation, or an owner-set new password. */
+        StaffUpdate: {
+            full_name?: string;
+            /** Format: email */
+            email?: string;
+            is_active?: boolean;
         };
         /**
          * @description * `completed` - Completed
@@ -2128,7 +2341,10 @@ export interface operations {
     };
     dashboard_retrieve: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description YYYY-MM-DD (default today) */
+                date?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -3382,6 +3598,31 @@ export interface operations {
             };
         };
     };
+    shops_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShopWriteRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ShopWriteRequest"];
+                "multipart/form-data": components["schemas"]["ShopWriteRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Shop"];
+                };
+            };
+        };
+    };
     shops_retrieve: {
         parameters: {
             query?: never;
@@ -3400,6 +3641,224 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Shop"];
+                };
+            };
+        };
+    };
+    shops_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this shop. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    shops_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this shop. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedShopWriteRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedShopWriteRequest"];
+                "multipart/form-data": components["schemas"]["PatchedShopWriteRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShopWrite"];
+                };
+            };
+        };
+    };
+    staff_list: {
+        parameters: {
+            query?: {
+                /** @description Which field to use when ordering the results. */
+                ordering?: string;
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+                /** @description A search term. */
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedStaffList"];
+                };
+            };
+        };
+    };
+    staff_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["StaffCreateRequest"];
+                "multipart/form-data": components["schemas"]["StaffCreateRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Staff"];
+                };
+            };
+        };
+    };
+    staff_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this user. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Staff"];
+                };
+            };
+        };
+    };
+    staff_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this user. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    staff_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this user. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedStaffUpdateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedStaffUpdateRequest"];
+                "multipart/form-data": components["schemas"]["PatchedStaffUpdateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffUpdate"];
+                };
+            };
+        };
+    };
+    staff_memberships_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this user. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Staff"];
+                };
+            };
+        };
+    };
+    staff_memberships_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this user. */
+                id: string;
+                membership_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Staff"];
                 };
             };
         };

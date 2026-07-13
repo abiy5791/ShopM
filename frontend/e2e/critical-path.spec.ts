@@ -11,12 +11,12 @@ test.describe("critical path: login → POS sale → void → report", () => {
     await page.getByRole("link", { name: "Point of Sale", exact: true }).click();
     await expect(page).toHaveURL("/pos");
 
-    const productCard = page.getByRole("button", { name: /Cola 500ml/ });
+    const productCard = page.getByRole("button", { name: /Cotton T-Shirt/ });
     await expect(productCard).toBeVisible({ timeout: 15_000 });
     await productCard.click();
 
     await page.getByRole("button", { name: "Charge", exact: true }).click();
-    await page.getByRole("button", { name: /^Charge \$/ }).click();
+    await page.getByRole("button", { name: /^Charge Br/ }).click();
 
     await expect(page.getByRole("heading", { name: "Receipt" })).toBeVisible();
     await expect(page.getByText("OFFLINE", { exact: false })).toHaveCount(0);
@@ -29,8 +29,9 @@ test.describe("critical path: login → POS sale → void → report", () => {
     const firstRow = page.locator("tbody tr").first();
     await expect(firstRow.getByText("completed")).toBeVisible();
 
-    page.once("dialog", (dialog) => dialog.accept());
     await firstRow.getByRole("button", { name: "Void sale" }).click();
+    // Styled confirmation dialog (v2 Phase D) instead of window.confirm.
+    await page.getByRole("alertdialog").getByRole("button", { name: "Void sale" }).click();
     await expect(firstRow.getByText("voided")).toBeVisible();
 
     // --- Reports: the sales report loads with a monetary summary ---

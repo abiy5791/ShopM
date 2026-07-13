@@ -13,14 +13,14 @@ test.describe("critical path: offline sale → reconnect → sync", () => {
     await expect(page).toHaveURL("/pos");
 
     // Warm the IndexedDB product cache while still online.
-    const productCard = page.getByRole("button", { name: /Mineral Water 1L/ });
+    const productCard = page.getByRole("button", { name: /Netela Shawl/ });
     await expect(productCard).toBeVisible({ timeout: 15_000 });
 
     // Go offline and complete a sale — it should queue locally, not fail.
     await context.setOffline(true);
     await productCard.click();
     await page.getByRole("button", { name: "Charge", exact: true }).click();
-    await page.getByRole("button", { name: /^Charge \$/ }).click();
+    await page.getByRole("button", { name: /^Charge Br/ }).click();
 
     await expect(page.getByText(/OFFLINE — pending sync/)).toBeVisible();
     await page.getByRole("button", { name: "Done" }).click();
