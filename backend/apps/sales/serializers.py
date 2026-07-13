@@ -39,6 +39,8 @@ class SaleCreateSerializer(serializers.Serializer):
             product = item["product"]
             if shop is not None and product.shop_id != shop.id:
                 raise serializers.ValidationError("Product not found in the active shop.")
+            if product.status != Product.Status.ACTIVE:
+                raise serializers.ValidationError(f"{product.name} is inactive and cannot be sold.")
         return items
 
     def validate_payments(self, payments):

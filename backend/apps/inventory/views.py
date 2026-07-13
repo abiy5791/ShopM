@@ -11,7 +11,7 @@ from apps.common.utils import get_client_ip
 
 from .models import InventoryTransaction
 from .serializers import InventoryTransactionSerializer, StockAdjustmentSerializer
-from .services import record_transaction
+from .services import NegativeStockError, record_transaction
 
 
 class InventoryTransactionViewSet(ShopScopedViewSetMixin, ReadOnlyModelViewSet):
@@ -46,13 +46,27 @@ class StockAdjustView(ShopScopedViewSetMixin, generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        txn = record_transaction(
-            product=data["product"],
-            quantity=data["quantity"],
-            type=data["type"],
-            user=request.user,
-            notes=data.get("notes", ""),
-        )
+        try:
+            txn = record_transaction(
+                product=data["product"],
+                quantity=data["quantity"],
+                type=data["type"],
+                user=request.user,
+                notes=data.get("notes", ""),
+            )
+        except NegativeStockError as exc:
+            return Response(
+                {
+                    "detail": str(exc),
+                    "code": "adjustment_below_zero",
+                    "fields": {
+                        "quantity": [
+                            f"Only {exc.available} in stock; cannot remove {exc.requested}."
+                        ]
+                    },
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         from apps.notifications.services import notify_low_stock
 
         notify_low_stock(data["product"])

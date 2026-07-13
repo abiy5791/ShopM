@@ -24,6 +24,24 @@ MANUAL_TYPES = {
 }
 
 
+class NegativeStockError(Exception):
+    """A stock-decreasing movement would take the product below zero.
+
+    Stock can never go negative: you cannot sell, damage, or return-out units
+    that don't exist. Compensating rows (voids, purchases) add stock and are
+    unaffected.
+    """
+
+    def __init__(self, product, requested: int, available: int):
+        self.product = product
+        self.requested = requested
+        self.available = available
+        super().__init__(
+            f"Insufficient stock for {product.name} ({product.sku}): "
+            f"requested {requested}, available {available}."
+        )
+
+
 def ledger_stock(product) -> int:
     """Authoritative stock: the signed sum of the product's ledger rows."""
     return (
@@ -58,7 +76,20 @@ def record_transaction(
         notes=notes,
     )
     # Atomic increment — correct even when many sales/adjustments race.
-    Product.all_objects.filter(pk=product.pk).update(stock_cached=F("stock_cached") + quantity)
+    # Decreasing movements are floored at zero via the WHERE clause: the
+    # conditional UPDATE is atomic at the DB level, so even two racing
+    # last-unit sales cannot both pass (the loser matches zero rows and the
+    # whole transaction — including the ledger row above — rolls back).
+    qs = Product.all_objects.filter(pk=product.pk)
+    if quantity < 0:
+        qs = qs.filter(stock_cached__gte=-quantity)
+    updated = qs.update(stock_cached=F("stock_cached") + quantity)
+    if not updated:
+        available = (
+            Product.all_objects.filter(pk=product.pk).values_list("stock_cached", flat=True).first()
+            or 0
+        )
+        raise NegativeStockError(product, requested=-quantity, available=available)
     product.refresh_from_db(fields=["stock_cached"])
     return txn
 

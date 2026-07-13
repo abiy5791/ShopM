@@ -10,8 +10,9 @@ from __future__ import annotations
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
+from apps.catalog.models import Product
 from apps.inventory.models import InventoryTransaction
-from apps.inventory.services import record_transaction
+from apps.inventory.services import NegativeStockError, record_transaction
 
 from .models import Payment, Sale, SaleItem
 
@@ -20,13 +21,60 @@ class CheckoutError(Exception):
     """Raised for unrecoverable checkout problems (e.g. underpayment)."""
 
 
+class InsufficientStockError(CheckoutError):
+    """One or more sale lines request more units than the shop has in stock.
+
+    ``shortages`` maps product id → {name, sku, requested, available} so the
+    POS can show exactly which lines to fix.
+    """
+
+    def __init__(self, shortages: dict[str, dict]):
+        self.shortages = shortages
+        names = ", ".join(s["name"] for s in shortages.values())
+        super().__init__(f"Insufficient stock: {names}.")
+
+
+def _check_stock(items) -> dict:
+    """Lock the sale's product rows and verify availability (plan v2 §2).
+
+    ``select_for_update`` serialises racing sales of the same products on
+    PostgreSQL (it is a no-op on SQLite, where the conditional-update floor in
+    ``record_transaction`` still guarantees stock never goes negative).
+    Returns the locked product instances keyed by pk so the rest of checkout
+    works from fresh rows.
+    """
+    requested: dict = {}
+    for item in items:
+        pk = item["product"].pk
+        requested[pk] = requested.get(pk, 0) + item["quantity"]
+
+    locked = {p.pk: p for p in Product.objects.select_for_update().filter(pk__in=requested)}
+
+    shortages: dict[str, dict] = {}
+    for pk, quantity in requested.items():
+        product = locked.get(pk)
+        available = product.stock_cached if product is not None else 0
+        if quantity > available:
+            shortages[str(pk)] = {
+                "name": product.name if product is not None else "Unknown product",
+                "sku": product.sku if product is not None else "",
+                "requested": quantity,
+                "available": available,
+            }
+    if shortages:
+        raise InsufficientStockError(shortages)
+    return locked
+
+
 def _build_sale(
     *, shop, cashier, client_uuid, items, payments, discount, tax, notes, customer=None
 ) -> Sale:
+    locked_products = _check_stock(items)
+
     subtotal = 0
     line_rows = []
     for item in items:
-        product = item["product"]
+        product = locked_products[item["product"].pk]
         quantity = item["quantity"]
         # Snapshot the price charged at sale time; fall back to the current price.
         unit_price = item.get("unit_price")
@@ -90,14 +138,28 @@ def _build_sale(
     from apps.notifications.services import notify_low_stock
 
     for product, quantity, _unit_price, _lt in line_rows:
-        record_transaction(
-            product=product,
-            quantity=-quantity,
-            type=InventoryTransaction.Type.SALE,
-            user=cashier,
-            reference_type="sale",
-            reference_id=str(sale.id),
-        )
+        try:
+            record_transaction(
+                product=product,
+                quantity=-quantity,
+                type=InventoryTransaction.Type.SALE,
+                user=cashier,
+                reference_type="sale",
+                reference_id=str(sale.id),
+            )
+        except NegativeStockError as exc:
+            # Backstop for backends without row locks (SQLite): a racing sale
+            # won between our pre-check and this decrement.
+            raise InsufficientStockError(
+                {
+                    str(product.pk): {
+                        "name": product.name,
+                        "sku": product.sku,
+                        "requested": exc.requested,
+                        "available": exc.available,
+                    }
+                }
+            ) from exc
         notify_low_stock(product)
 
     return sale

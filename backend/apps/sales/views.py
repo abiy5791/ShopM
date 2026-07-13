@@ -12,7 +12,7 @@ from apps.common.utils import get_client_ip
 
 from .models import Sale
 from .serializers import ReceiptSerializer, SaleCreateSerializer, SaleSerializer
-from .services import CheckoutError, create_sale, void_sale
+from .services import CheckoutError, InsufficientStockError, create_sale, void_sale
 
 
 class CheckoutFailed(APIException):
@@ -72,6 +72,17 @@ class SaleViewSet(
                 tax=data["tax"],
                 notes=data["notes"],
                 customer=data.get("customer"),
+            )
+        except InsufficientStockError as exc:
+            # Structured envelope (plan §9): fields keyed by product id so the
+            # POS can flag the exact offending cart lines.
+            return Response(
+                {
+                    "detail": str(exc),
+                    "code": "insufficient_stock",
+                    "fields": exc.shortages,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
         except CheckoutError as exc:
             raise CheckoutFailed(str(exc)) from exc
