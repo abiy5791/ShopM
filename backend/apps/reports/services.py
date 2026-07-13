@@ -52,8 +52,8 @@ def _cogs(sale_qs) -> int:
 
 
 # ---------------------------------------------------------------- dashboard
-def dashboard(shop) -> dict:
-    today = timezone.now().date()
+def dashboard(shop, on_date: date | None = None) -> dict:
+    today = on_date or timezone.now().date()
     day_start, day_end = _datetime_range(today, today)
     todays_sales = _completed_sales(shop).filter(created_at__gte=day_start, created_at__lt=day_end)
     sales_total = todays_sales.aggregate(s=Sum("total"))["s"] or 0
@@ -90,8 +90,29 @@ def dashboard(shop) -> dict:
         _completed_sales(shop).order_by("-created_at").values("id", "total", "created_at")[:10]
     )
 
+    # Sales totals for the 7 days ending on `today` (sparkline, v2 plan §4).
+    week_start = today - timedelta(days=6)
+    ws, we = _datetime_range(week_start, today)
+    weekly = (
+        _completed_sales(shop)
+        .filter(created_at__gte=ws, created_at__lt=we)
+        .annotate(bucket=TruncDate("created_at"))
+        .values("bucket")
+        .annotate(total=Sum("total"))
+    )
+    weekly_map = {g["bucket"]: g["total"] or 0 for g in weekly}
+    week_series = [
+        {
+            "date": str(week_start + timedelta(days=i)),
+            "total": weekly_map.get(week_start + timedelta(days=i), 0),
+        }
+        for i in range(7)
+    ]
+
     return {
         "currency": _currency(shop),
+        "date": str(today),
+        "week_series": week_series,
         "today": {
             "sales_total": sales_total,
             "sales_count": sales_count,
@@ -144,6 +165,18 @@ def sales_report(shop, *, period="daily", start=None, end=None) -> dict:
     rows = [[str(g["bucket"])[:10], g["count"], g["total"] or 0] for g in grouped]
     summary_total = qs.aggregate(s=Sum("total"))["s"] or 0
     summary_count = qs.count()
+    # Chart-ready series (v2 plan §4): one point per bucket + method breakdown.
+    series = [
+        {"date": str(g["bucket"])[:10], "total": g["total"] or 0, "count": g["count"]}
+        for g in grouped
+    ]
+    by_method = [
+        {"method": g["method"], "total": g["total"] or 0}
+        for g in Payment.objects.filter(sale__in=qs)
+        .values("method")
+        .annotate(total=Sum("amount"))
+        .order_by("-total")
+    ]
     return {
         "key": "sales",
         "title": f"Sales report ({period})",
@@ -156,6 +189,8 @@ def sales_report(shop, *, period="daily", start=None, end=None) -> dict:
         "columns": ["Date", "Transactions", "Total"],
         "rows": rows,
         "money_columns": [2],
+        "series": series,
+        "by_method": by_method,
     }
 
 
@@ -173,6 +208,20 @@ def inventory_report(shop) -> dict:
         elif p.stock_cached <= p.min_stock_alert:
             low += 1
         rows.append([p.name, p.sku, p.stock_cached, p.purchase_price, line_value])
+    # Top sellers over the last 30 days (v2 plan §4) for the inventory chart.
+    since = timezone.now().date() - timedelta(days=29)
+    since_dt, _ = _datetime_range(since, since)
+    top_sellers = [
+        {"name": g["name_snapshot"], "quantity": g["quantity"]}
+        for g in SaleItem.objects.filter(
+            sale__shop=shop,
+            sale__status=Sale.Status.COMPLETED,
+            sale__created_at__gte=since_dt,
+        )
+        .values("name_snapshot")
+        .annotate(quantity=Sum("quantity"))
+        .order_by("-quantity")[:8]
+    ]
     return {
         "key": "inventory",
         "title": "Inventory report",
@@ -185,6 +234,7 @@ def inventory_report(shop) -> dict:
         "columns": ["Product", "SKU", "Stock", "Unit cost", "Valuation"],
         "rows": rows,
         "money_columns": [3, 4],
+        "top_sellers": top_sellers,
     }
 
 
@@ -203,6 +253,53 @@ def profit_report(shop, *, start=None, end=None) -> dict:
         or 0
     )
     net = gross - expenses
+
+    # Daily series + expense breakdown (v2 plan §4), zero-filled so charts
+    # show quiet days. Capped at ~a year of points.
+    daily_revenue = {
+        g["bucket"]: g["s"] or 0
+        for g in qs.annotate(bucket=TruncDate("created_at"))
+        .values("bucket")
+        .annotate(s=Sum("total"))
+    }
+    daily_cogs = {
+        g["bucket"]: g["s"] or 0
+        for g in SaleItem.objects.filter(sale__in=qs)
+        .annotate(bucket=TruncDate("sale__created_at"))
+        .values("bucket")
+        .annotate(s=Sum(_LINE_COST))
+    }
+    daily_expenses = {
+        g["date"]: g["s"] or 0
+        for g in Expense.objects.filter(shop=shop, date__gte=start, date__lte=end)
+        .values("date")
+        .annotate(s=Sum("amount"))
+    }
+    series = []
+    day = start
+    while day <= end and len(series) <= 366:
+        rev = daily_revenue.get(day, 0)
+        day_cogs = daily_cogs.get(day, 0)
+        exp = daily_expenses.get(day, 0)
+        series.append(
+            {
+                "date": str(day),
+                "revenue": rev,
+                "cogs": day_cogs,
+                "expenses": exp,
+                "net": rev - day_cogs - exp,
+            }
+        )
+        day += timedelta(days=1)
+
+    by_category = [
+        {"category": g["category__name"] or "Uncategorized", "total": g["s"] or 0}
+        for g in Expense.objects.filter(shop=shop, date__gte=start, date__lte=end)
+        .values("category__name")
+        .annotate(s=Sum("amount"))
+        .order_by("-s")
+    ]
+
     return {
         "key": "profit",
         "title": "Profit report",
@@ -225,6 +322,8 @@ def profit_report(shop, *, start=None, end=None) -> dict:
             ["Net profit", net],
         ],
         "money_columns": [1],
+        "series": series,
+        "by_category": by_category,
     }
 
 
@@ -256,6 +355,51 @@ def cashflow_report(shop, *, start=None, end=None) -> dict:
         or 0
     )
     net = cash_in - expenses - purchases_paid
+
+    # Daily in/out series with a running balance within the range (v2 plan §4).
+    daily_in = {
+        g["bucket"]: g["s"] or 0
+        for g in Payment.objects.filter(
+            shop=shop,
+            method=Payment.Method.CASH,
+            received_at__gte=range_start,
+            received_at__lt=range_end,
+        )
+        .exclude(sale__status=Sale.Status.VOIDED)
+        .annotate(bucket=TruncDate("received_at"))
+        .values("bucket")
+        .annotate(s=Sum("amount"))
+    }
+    daily_expenses = {
+        g["date"]: g["s"] or 0
+        for g in Expense.objects.filter(shop=shop, date__gte=start, date__lte=end)
+        .values("date")
+        .annotate(s=Sum("amount"))
+    }
+    daily_purchases = {
+        g["date"]: g["s"] or 0
+        for g in Purchase.objects.filter(shop=shop, date__gte=start, date__lte=end)
+        .values("date")
+        .annotate(s=Sum("amount_paid"))
+    }
+    series = []
+    balance = 0
+    day = start
+    while day <= end and len(series) <= 366:
+        cash_in_day = daily_in.get(day, 0)
+        cash_out_day = daily_expenses.get(day, 0) + daily_purchases.get(day, 0)
+        balance += cash_in_day - cash_out_day
+        series.append(
+            {
+                "date": str(day),
+                "cash_in": cash_in_day,
+                "cash_out": cash_out_day,
+                "net": cash_in_day - cash_out_day,
+                "balance": balance,
+            }
+        )
+        day += timedelta(days=1)
+
     return {
         "key": "cashflow",
         "title": "Cash flow report",
@@ -270,4 +414,5 @@ def cashflow_report(shop, *, start=None, end=None) -> dict:
             ["Net cash flow", net],
         ],
         "money_columns": [1],
+        "series": series,
     }

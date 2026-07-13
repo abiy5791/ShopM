@@ -51,9 +51,13 @@ class DashboardView(ShopScopedViewSetMixin, generics.GenericAPIView):
     required_roles = {ROLE_OWNER}
     serializer_class = DashboardSerializer
 
-    @extend_schema(responses={200: DashboardSerializer})
+    @extend_schema(
+        parameters=[OpenApiParameter("date", str, description="YYYY-MM-DD (default today)")],
+        responses={200: DashboardSerializer},
+    )
     def get(self, request, *args, **kwargs):
-        return Response(services.dashboard(self.active_shop))
+        on_date = _parse_date(request.query_params.get("date"))
+        return Response(services.dashboard(self.active_shop, on_date=on_date))
 
 
 _FORMAT_PARAM = OpenApiParameter("export", str, enum=["pdf", "xlsx"])
