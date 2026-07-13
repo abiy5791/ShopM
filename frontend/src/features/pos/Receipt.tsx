@@ -23,11 +23,13 @@ export function Receipt({ data }: { data: ReceiptData }) {
         <tbody>
           {data.items.map((i, idx) => (
             <tr key={idx} className="align-top">
-              <td className="py-0.5">
+              <td className="py-0.5 pr-3">
                 {i.quantity} × {i.name}
                 <div className="text-muted-foreground">@ {money(i.unit_price)}</div>
               </td>
-              <td className="py-0.5 text-right tabular-nums">{money(i.line_total)}</td>
+              <td className="whitespace-nowrap py-0.5 text-right tabular-nums">
+                {money(i.line_total)}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -40,7 +42,11 @@ export function Receipt({ data }: { data: ReceiptData }) {
       {data.tax > 0 && <Line label="Tax" value={money(data.tax)} />}
       <Line label="Total" value={money(data.total)} strong />
       <Line label="Paid" value={money(data.amount_paid)} />
-      <Line label="Change" value={money(data.change)} />
+      {data.amount_paid < data.total ? (
+        <Line label="On credit" value={money(data.total - data.amount_paid)} />
+      ) : (
+        <Line label="Change" value={money(data.change)} />
+      )}
 
       {data.receipt_footer && (
         <p className="mt-3 text-center text-muted-foreground">{data.receipt_footer}</p>

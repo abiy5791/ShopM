@@ -23,6 +23,7 @@ import { formatDateTime } from "@/lib/utils";
 import type { Sale } from "@/types";
 
 import { useSales, useVoidSale } from "./api";
+import { SaleDetailDialog } from "./SaleDetailDialog";
 
 export default function SalesPage() {
   const shop = useActiveShop();
@@ -32,6 +33,7 @@ export default function SalesPage() {
   );
   const [page, setPage] = useState(1);
   const [voiding, setVoiding] = useState<Sale | null>(null);
+  const [detail, setDetail] = useState<Sale | null>(null);
   const { data, isLoading, isError, refetch } = useSales(page);
   const voidSale = useVoidSale();
   const rows = data?.results ?? [];
@@ -49,7 +51,10 @@ export default function SalesPage() {
 
   return (
     <div>
-      <PageHeader title="Sales" description="Completed sales for this shop." />
+      <PageHeader
+        title="Sales"
+        description="Completed sales for this shop. Select a sale for full details."
+      />
 
       <Card className="overflow-hidden">
         <Table>
@@ -77,7 +82,18 @@ export default function SalesPage() {
               ))}
             {!isLoading &&
               rows.map((sale) => (
-                <TableRow key={sale.id}>
+                <TableRow
+                  key={sale.id}
+                  tabIndex={0}
+                  className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                  onClick={() => setDetail(sale)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setDetail(sale);
+                    }
+                  }}
+                >
                   <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
                     {formatDateTime(sale.created_at)}
                   </TableCell>
@@ -105,7 +121,10 @@ export default function SalesPage() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                          onClick={() => setVoiding(sale)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setVoiding(sale);
+                          }}
                           aria-label="Void sale"
                         >
                           <Ban className="h-3.5 w-3.5" />
@@ -159,6 +178,12 @@ export default function SalesPage() {
           )}
         </div>
       )}
+
+      <SaleDetailDialog
+        sale={detail}
+        currency={currency}
+        onOpenChange={(o) => !o && setDetail(null)}
+      />
 
       <ConfirmDialog
         open={voiding !== null}
