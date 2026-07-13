@@ -1,6 +1,7 @@
-import { Boxes, Package, Receipt, ScanLine, TrendingUp, Users, Wallet } from "lucide-react";
+import { Boxes, Receipt, ScanLine, TrendingUp, Users, Wallet } from "lucide-react";
 import { Link } from "react-router-dom";
 
+import { HBarChart, Sparkline } from "@/components/charts";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -53,6 +54,14 @@ export default function DashboardPage() {
           value={t ? formatMoney(t.sales_total, currency) : undefined}
           sub={t ? `${t.sales_count} sale${t.sales_count === 1 ? "" : "s"}` : ""}
           loading={isLoading}
+          spark={
+            data?.week_series?.length ? (
+              <Sparkline
+                data={data.week_series as unknown as Record<string, unknown>[]}
+                dataKey="total"
+              />
+            ) : undefined
+          }
         />
         <Kpi
           label="Gross profit"
@@ -62,9 +71,10 @@ export default function DashboardPage() {
           loading={isLoading}
         />
         <Kpi
-          label="Cash balance"
+          label="Cash on hand"
           icon={Wallet}
           value={data ? formatMoney(data.cash_balance, currency) : undefined}
+          sub="All time: cash received − expenses & purchases"
           loading={isLoading}
         />
         <Kpi
@@ -85,17 +95,13 @@ export default function DashboardPage() {
             {isLoading ? (
               <Skeleton className="h-24 w-full" />
             ) : data && data.best_sellers.length > 0 ? (
-              <ul className="space-y-1.5">
-                {data.best_sellers.map((b) => (
-                  <li key={b.name} className="flex justify-between text-sm">
-                    <span className="flex items-center gap-2">
-                      <Package className="h-3.5 w-3.5 text-muted-foreground" />
-                      {b.name}
-                    </span>
-                    <span className="font-mono tabular-nums">{b.quantity}</span>
-                  </li>
-                ))}
-              </ul>
+              <HBarChart
+                data={data.best_sellers as unknown as Record<string, unknown>[]}
+                dataKey="quantity"
+                nameKey="name"
+                name="Units sold"
+                height={Math.max(120, data.best_sellers.length * 36)}
+              />
             ) : (
               <p className="py-6 text-center text-sm text-muted-foreground">No sales yet.</p>
             )}
@@ -136,12 +142,14 @@ function Kpi({
   value,
   sub,
   loading,
+  spark,
 }: {
   label: string;
   icon: typeof Receipt;
   value?: string;
   sub?: string;
   loading: boolean;
+  spark?: React.ReactNode;
 }) {
   return (
     <Card>
@@ -156,6 +164,7 @@ function Kpi({
           <div className="font-mono text-2xl font-semibold tabular-nums">{value}</div>
         )}
         {sub && <p className="mt-1 text-xs text-muted-foreground">{sub}</p>}
+        {spark && <div className="mt-2">{spark}</div>}
       </CardContent>
     </Card>
   );

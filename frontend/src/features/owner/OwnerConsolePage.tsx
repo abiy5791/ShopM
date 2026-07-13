@@ -15,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CompareBarChart } from "@/components/charts";
 import { formatMoney } from "@/lib/money";
 
 import { useOwnerDashboard, useShopComparison } from "./api";
@@ -174,6 +175,21 @@ function ComparisonCard() {
         </div>
       </CardHeader>
       <CardContent className="p-0">
+        {!isLoading && data && data.shops.length > 1 && (
+          <div className="border-b px-4 py-3">
+            <CompareBarChart
+              data={data.shops as unknown as Record<string, unknown>[]}
+              nameKey="shop_name"
+              currency={data.shops[0]?.currency ?? "ETB"}
+              series={[
+                { dataKey: "sales_total", name: "Sales", color: "var(--chart-1)" },
+                { dataKey: "expenses", name: "Expenses", color: "var(--chart-2)" },
+                { dataKey: "net_profit", name: "Net profit", color: "var(--chart-3)" },
+              ]}
+              height={240}
+            />
+          </div>
+        )}
         <Table>
           <TableHeader>
             <TableRow>

@@ -56,6 +56,18 @@ export function minorToInput(minor: number, currency: string): string {
  * Grouping is fixed to en-US ("Br1,250.00") so receipts read the same everywhere
  * and match the server; unknown currencies fall back to "12.34 ZZ".
  */
+/** Compact display for chart axes, e.g. (1250000, "ETB") -> "Br12.5K". */
+export function formatMoneyCompact(minor: number, currency: string): string {
+  const major = minor / 10 ** exponent(currency);
+  const code = currency.toUpperCase();
+  const number = new Intl.NumberFormat("en-US", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(major);
+  const symbol = SYMBOLS[code];
+  return symbol ? `${symbol}${number}` : `${number} ${code}`;
+}
+
 export function formatMoney(minor: number, currency: string): string {
   const exp = exponent(currency);
   const major = minor / 10 ** exp;

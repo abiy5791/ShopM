@@ -297,6 +297,8 @@ export interface CustomerLedger {
 
 export interface DashboardData {
   currency: string;
+  date?: string;
+  week_series?: { date: string; total: number }[];
   today: {
     sales_total: number;
     sales_count: number;
@@ -317,6 +319,28 @@ export interface ReportSummaryItem {
   money: boolean;
 }
 
+export interface SalesSeriesPoint {
+  date: string;
+  total: number;
+  count: number;
+}
+
+export interface ProfitSeriesPoint {
+  date: string;
+  revenue: number;
+  cogs: number;
+  expenses: number;
+  net: number;
+}
+
+export interface CashflowSeriesPoint {
+  date: string;
+  cash_in: number;
+  cash_out: number;
+  net: number;
+  balance: number;
+}
+
 export interface ReportData {
   key: string;
   title: string;
@@ -325,6 +349,12 @@ export interface ReportData {
   columns: string[];
   rows: (string | number)[][];
   money_columns: number[];
+  period?: { start: string; end: string; granularity?: string };
+  // Chart payloads (v2 plan §4) — present per report type.
+  series?: (SalesSeriesPoint | ProfitSeriesPoint | CashflowSeriesPoint)[];
+  by_method?: { method: PaymentMethod; total: number }[];
+  by_category?: { category: string; total: number }[];
+  top_sellers?: { name: string; quantity: number }[];
 }
 
 export interface OwnerShopSummary extends DashboardData {
