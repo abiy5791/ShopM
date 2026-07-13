@@ -49,6 +49,23 @@ export interface Shop {
   created_at: string;
 }
 
+export interface StaffMembership {
+  id: string;
+  shop_id: string;
+  shop_name: string;
+  role: RoleName;
+}
+
+export interface StaffMember {
+  id: string;
+  email: string;
+  full_name: string;
+  is_active: boolean;
+  last_login: string | null;
+  created_at: string;
+  memberships: StaffMembership[];
+}
+
 export interface ShopSettings {
   currency: string;
   tax_rate: string;
