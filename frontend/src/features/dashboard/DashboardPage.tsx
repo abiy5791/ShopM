@@ -1,14 +1,25 @@
-import { Boxes, Receipt, ScanLine, TrendingUp, Users, Wallet } from "lucide-react";
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  Boxes,
+  Minus,
+  Receipt,
+  ScanLine,
+  TrendingUp,
+  Users,
+  Wallet,
+} from "lucide-react";
+import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
-import { HBarChart, Sparkline } from "@/components/charts";
+import { HBarChart, TrendAreaChart } from "@/components/charts";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useActiveShop } from "@/features/pos/api";
 import { useAuthStore } from "@/lib/auth";
 import { formatMoney } from "@/lib/money";
-import { formatDateTime } from "@/lib/utils";
+import { cn, formatDateTime } from "@/lib/utils";
 
 import { useDashboard } from "./api";
 
@@ -44,6 +55,19 @@ export default function DashboardPage() {
 
   const t = data?.today;
 
+  // Weekly synthesis, all derived from the 7-day sales series the API already
+  // returns (index 6 = today, 5 = yesterday). Nothing here is invented — a stat
+  // shows only when its underlying number exists.
+  const series = data?.week_series ?? [];
+  const todayTotal = series.length ? series[series.length - 1].total : 0;
+  const yesterdayTotal = series.length > 1 ? series[series.length - 2].total : 0;
+  const weekTotal = series.reduce((s, d) => s + d.total, 0);
+  const avgPerDay = series.length ? Math.round(weekTotal / series.length) : 0;
+  const bestDay = series.reduce<{ date: string; total: number }>(
+    (best, d) => (d.total > best.total ? d : best),
+    { date: "", total: 0 },
+  );
+
   return (
     <div>
       <PageHeader title={`Welcome, ${firstName}`} description="Today at a glance." />
@@ -55,12 +79,9 @@ export default function DashboardPage() {
           value={t ? formatMoney(t.sales_total, currency) : undefined}
           sub={t ? `${t.sales_count} sale${t.sales_count === 1 ? "" : "s"}` : ""}
           loading={isLoading}
-          spark={
-            data?.week_series?.length ? (
-              <Sparkline
-                data={data.week_series as unknown as Record<string, unknown>[]}
-                dataKey="total"
-              />
+          delta={
+            data ? (
+              <DeltaBadge current={todayTotal} previous={yesterdayTotal} label="vs yesterday" />
             ) : undefined
           }
         />
@@ -87,6 +108,60 @@ export default function DashboardPage() {
           loading={isLoading}
         />
       </div>
+
+      {/* Weekly sales — the "today" tiles can read empty on a slow morning; this
+          panel shows the week's shape and where today sits in it. */}
+      <Card className="mt-4 p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <span className="font-mono text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
+              Sales · last 7 days
+            </span>
+            <div className="mt-2 flex items-center gap-2.5">
+              {isLoading || !data ? (
+                <Skeleton className="h-7 w-32" />
+              ) : (
+                <>
+                  <span className="font-mono text-[26px] font-semibold leading-none tabular-nums">
+                    {formatMoney(weekTotal, currency)}
+                  </span>
+                  <DeltaBadge
+                    current={todayTotal}
+                    previous={yesterdayTotal}
+                    label="today vs yesterday"
+                  />
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4">
+          {isLoading ? (
+            <Skeleton className="h-[200px] w-full" />
+          ) : (
+            <TrendAreaChart
+              data={series as unknown as Record<string, unknown>[]}
+              dataKey="total"
+              name="Sales"
+              currency={currency}
+              height={200}
+            />
+          )}
+        </div>
+
+        {!isLoading && data && (
+          <div className="mt-4 grid grid-cols-3 gap-3 border-t pt-4">
+            <MiniStat label="Today" value={formatMoney(todayTotal, currency)} />
+            <MiniStat label="Avg / day" value={formatMoney(avgPerDay, currency)} />
+            <MiniStat
+              label="Best day"
+              value={bestDay.total > 0 ? formatMoney(bestDay.total, currency) : "—"}
+              hint={bestDay.total > 0 ? shortDay(bestDay.date) : undefined}
+            />
+          </div>
+        )}
+      </Card>
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
@@ -142,7 +217,7 @@ function Kpi({
   value,
   sub,
   loading,
-  spark,
+  delta,
   negative = false,
 }: {
   label: string;
@@ -150,33 +225,106 @@ function Kpi({
   value?: string;
   sub?: string;
   loading: boolean;
-  spark?: React.ReactNode;
+  delta?: ReactNode;
   negative?: boolean;
 }) {
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
-        <Icon className="h-4 w-4 text-accent" />
-      </CardHeader>
-      <CardContent>
-        {loading || value === undefined ? (
-          <Skeleton className="h-8 w-24" />
-        ) : (
-          <div
-            className={
-              "font-mono text-2xl font-semibold tabular-nums" +
-              (negative ? " text-destructive" : "")
-            }
-          >
-            {value}
-          </div>
-        )}
-        {sub && <p className="mt-1 text-xs text-muted-foreground">{sub}</p>}
-        {spark && <div className="mt-2">{spark}</div>}
-      </CardContent>
+    <Card className="p-5">
+      {/* Label set as an uppercase mono micro-label — the receipt's own
+          vernacular (SUBTOTAL / CASH / CHANGE), so every tile reads like a line
+          off the printer. */}
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-mono text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
+          {label}
+        </span>
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-accent/10 text-accent">
+          <Icon className="h-4 w-4" />
+        </span>
+      </div>
+      {loading || value === undefined ? (
+        <Skeleton className="mt-3 h-8 w-24" />
+      ) : (
+        <div
+          className={
+            "mt-3 font-mono text-[26px] font-semibold leading-none tabular-nums" +
+            (negative ? " text-destructive" : "")
+          }
+        >
+          {value}
+        </div>
+      )}
+      {(sub || delta) && (
+        <div className="mt-2 flex items-center gap-2">
+          {delta}
+          {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
+        </div>
+      )}
     </Card>
   );
+}
+
+/** A trend chip in the PNL style: green up / red down / muted flat, with the
+ *  period-over-period change. Shows only real comparisons — no baseline yet
+ *  reads as "New", equal reads flat. */
+function DeltaBadge({
+  current,
+  previous,
+  label,
+}: {
+  current: number;
+  previous: number;
+  label?: string;
+}) {
+  let dir: "up" | "down" | "flat" = "flat";
+  let text = "—";
+  if (previous === 0) {
+    if (current > 0) {
+      dir = "up";
+      text = "New";
+    }
+  } else {
+    const pct = ((current - previous) / previous) * 100;
+    dir = pct > 0 ? "up" : pct < 0 ? "down" : "flat";
+    const rounded = Math.abs(pct) >= 10 ? Math.round(pct) : Math.round(pct * 10) / 10;
+    text = `${pct > 0 ? "+" : ""}${rounded}%`;
+  }
+  const Icon = dir === "up" ? ArrowUpRight : dir === "down" ? ArrowDownRight : Minus;
+  const tone =
+    dir === "up"
+      ? "bg-accent/10 text-accent"
+      : dir === "down"
+        ? "bg-destructive/10 text-destructive"
+        : "bg-muted text-muted-foreground";
+  return (
+    <span
+      title={label}
+      className={cn(
+        "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-mono text-[11px] font-medium tabular-nums",
+        tone,
+      )}
+    >
+      <Icon className="h-3 w-3" />
+      {text}
+    </span>
+  );
+}
+
+function MiniStat({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <div className="min-w-0">
+      <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">{label}</p>
+      <p className="mt-1 truncate font-mono text-[13px] font-semibold tabular-nums sm:text-sm">
+        {value}
+      </p>
+      {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
+    </div>
+  );
+}
+
+/** "2026-07-13" → "Jul 13", parsed as a local date so it never slips a day. */
+function shortDay(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 function QuickLink({

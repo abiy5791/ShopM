@@ -26,7 +26,7 @@ export function AppShell() {
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
 
   const headerBar = (
-    <header className="flex h-14 items-center justify-between border-b bg-card px-4">
+    <header className="flex h-14 items-center justify-between border-b bg-card/85 px-4 backdrop-blur supports-[backdrop-filter]:bg-card/70">
       <div className="flex items-center gap-1">
         <MobileNav />
         <ShopSwitcher />

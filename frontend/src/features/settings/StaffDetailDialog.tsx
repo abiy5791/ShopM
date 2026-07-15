@@ -195,9 +195,9 @@ export function StaffDetailDialog({
               ))}
             </ul>
             {grantable.length > 0 && (
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <Select value={grantShop} onValueChange={setGrantShop}>
-                  <SelectTrigger className="h-8 flex-1">
+                  <SelectTrigger className="w-full sm:h-8 sm:flex-1">
                     <SelectValue placeholder="Add a branch…" />
                   </SelectTrigger>
                   <SelectContent>
@@ -208,21 +208,27 @@ export function StaffDetailDialog({
                     ))}
                   </SelectContent>
                 </Select>
-                <Select
-                  value={grantRole}
-                  onValueChange={(v) => setGrantRole(v as "owner" | "cashier")}
-                >
-                  <SelectTrigger className="h-8 w-28">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cashier">Cashier</SelectItem>
-                    <SelectItem value="owner">Manager</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button size="sm" className="h-8" onClick={grant} disabled={!grantShop || busy}>
-                  Add
-                </Button>
+                <div className="flex gap-2">
+                  <Select
+                    value={grantRole}
+                    onValueChange={(v) => setGrantRole(v as "owner" | "cashier")}
+                  >
+                    <SelectTrigger className="flex-1 sm:h-8 sm:w-28">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cashier">Cashier</SelectItem>
+                      <SelectItem value="owner">Manager</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    className="shrink-0 sm:h-8"
+                    onClick={grant}
+                    disabled={!grantShop || busy}
+                  >
+                    Add
+                  </Button>
+                </div>
               </div>
             )}
           </section>

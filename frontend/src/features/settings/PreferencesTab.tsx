@@ -58,7 +58,7 @@ export function PreferencesTab() {
           </div>
         ) : (
           <div className="max-w-xl space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field label="Currency (ISO code)">
                 <Input
                   value={form.currency}
@@ -74,7 +74,7 @@ export function PreferencesTab() {
                 />
               </Field>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field label="Low-stock alert default">
                 <Input
                   type="number"

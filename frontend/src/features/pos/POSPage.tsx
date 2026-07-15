@@ -1,4 +1,15 @@
-import { AlertTriangle, Minus, Plus, ScanLine, Search, Trash2, WifiOff } from "lucide-react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import {
+  AlertTriangle,
+  Minus,
+  Plus,
+  ScanLine,
+  Search,
+  ShoppingCart,
+  Trash2,
+  WifiOff,
+  X,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -13,7 +24,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -31,6 +41,7 @@ import { checkout, stockShortages, usePendingSync, usePosCatalog, useActiveShop 
 import {
   type AddResult,
   type CartLine,
+  type CartState,
   cartShortages,
   cartSubtotal,
   cartTax,
@@ -72,6 +83,7 @@ export default function POSPage() {
   const [discountInput, setDiscountInput] = useState("");
   const [payOpen, setPayOpen] = useState(false);
   const [failedOpen, setFailedOpen] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -81,6 +93,7 @@ export default function POSPage() {
   const tax = cart.taxEnabled ? cartTax(cart.lines, discount, taxRate) : 0;
   const total = cartTotal(cart.lines, discount, taxRate, cart.taxEnabled);
   const shortages = cartShortages(cart.lines);
+  const itemCount = cart.lines.reduce((n, l) => n + l.quantity, 0);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -188,8 +201,8 @@ export default function POSPage() {
 
   return (
     <div className="flex flex-col gap-4 lg:h-[calc(100vh-7rem)] lg:flex-row">
-      {/* Catalogue */}
-      <div className="flex min-w-0 flex-1 flex-col">
+      {/* Catalogue. Extra bottom padding on mobile clears the fixed cart bar. */}
+      <div className="flex min-w-0 flex-1 flex-col pb-20 lg:pb-0">
         <div className="mb-3 flex items-center gap-2">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -291,101 +304,79 @@ export default function POSPage() {
         </Card>
       </div>
 
-      {/* Cart */}
-      <Card className="flex w-full flex-col lg:w-[380px]">
-        <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
-          <span className="text-sm font-semibold">Current sale</span>
-          <Select value={customerId} onValueChange={setCustomerId}>
-            <SelectTrigger className="h-8 w-44">
-              <SelectValue placeholder="Walk-in" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">Walk-in customer</SelectItem>
-              {(customers.data?.results ?? []).map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-2 py-2">
-          {cart.lines.length === 0 ? (
-            <p className="px-2 py-8 text-center text-sm text-muted-foreground">
-              Tap a product to add it to the sale.
-            </p>
-          ) : (
-            cart.lines.map((line) => (
-              <CartRow key={line.productId} line={line} currency={currency} />
-            ))
-          )}
-        </div>
-
-        <div className="space-y-3 border-t px-4 py-3">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="discount" className="w-20 text-xs">
-              Discount
-            </Label>
-            <Input
-              id="discount"
-              inputMode="decimal"
-              placeholder="0"
-              className="h-8"
-              value={discountInput}
-              onChange={(e) => setDiscountInput(e.target.value)}
-            />
-          </div>
-          {taxRate > 0 && (
-            <label className="flex items-center gap-2 text-xs">
-              <input
-                type="checkbox"
-                checked={cart.taxEnabled}
-                onChange={(e) => cart.setTaxEnabled(e.target.checked)}
-              />
-              Apply {taxRate}% tax
-            </label>
-          )}
-
-          <div className="space-y-1 text-sm">
-            <Row label="Subtotal" value={formatMoney(subtotal, currency)} />
-            {discount > 0 && <Row label="Discount" value={`−${formatMoney(discount, currency)}`} />}
-            {tax > 0 && <Row label="Tax" value={formatMoney(tax, currency)} />}
-            <div className="flex justify-between pt-1 text-base font-semibold">
-              <span>Total</span>
-              <span className="font-mono tabular-nums">{formatMoney(total, currency)}</span>
-            </div>
-          </div>
-
-          {shortages.length > 0 && (
-            <p role="alert" className="flex items-start gap-1.5 text-xs text-destructive">
-              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              <span>
-                Not enough stock for{" "}
-                {shortages.map((l) => `${l.name} (${l.stock} left)`).join(", ")}. Lower the quantity
-                to continue.
-              </span>
-            </p>
-          )}
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              className="flex-1"
-              disabled={cart.lines.length === 0}
-              onClick={() => cart.clear()}
-            >
-              Clear
-            </Button>
-            <Button
-              className="flex-1"
-              disabled={cart.lines.length === 0 || total < 0 || shortages.length > 0}
-              onClick={() => setPayOpen(true)}
-            >
-              Charge
-            </Button>
-          </div>
-        </div>
+      {/* Cart — a side panel from lg up; on phones/tablets it lives in a
+          bottom-sheet reached from the sticky bar below (POS is thumb-driven). */}
+      <Card className="hidden w-full flex-col overflow-hidden lg:flex lg:w-[380px]">
+        <SaleCart
+          cart={cart}
+          currency={currency}
+          taxRate={taxRate}
+          customers={customers.data?.results ?? []}
+          customerId={customerId}
+          setCustomerId={setCustomerId}
+          discountInput={discountInput}
+          setDiscountInput={setDiscountInput}
+          discount={discount}
+          subtotal={subtotal}
+          tax={tax}
+          total={total}
+          shortages={shortages}
+          onCharge={() => setPayOpen(true)}
+        />
       </Card>
+
+      {/* Mobile: sticky bar that summarises the sale and opens the sheet. */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-card/95 p-3 backdrop-blur md:left-60 lg:hidden">
+        <Button
+          className="h-11 w-full justify-between"
+          disabled={cart.lines.length === 0}
+          onClick={() => setCartOpen(true)}
+        >
+          <span className="flex items-center gap-2">
+            <ShoppingCart className="h-4 w-4" />
+            {cart.lines.length
+              ? `${itemCount} item${itemCount === 1 ? "" : "s"} in sale`
+              : "No items yet"}
+          </span>
+          {cart.lines.length > 0 && (
+            <span className="font-mono tabular-nums">{formatMoney(total, currency)}</span>
+          )}
+        </Button>
+      </div>
+
+      {/* Mobile: the current sale as a bottom-sheet. */}
+      <DialogPrimitive.Root open={cartOpen} onOpenChange={setCartOpen}>
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-foreground/40 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0" />
+          <DialogPrimitive.Content
+            aria-describedby={undefined}
+            className="fixed inset-x-0 bottom-0 z-50 flex max-h-[90dvh] flex-col overflow-hidden rounded-t-2xl border bg-card shadow-lg outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom lg:hidden"
+          >
+            <DialogPrimitive.Title className="sr-only">Current sale</DialogPrimitive.Title>
+            <div className="mx-auto mb-1 mt-2 h-1.5 w-10 shrink-0 rounded-full bg-border" />
+            <SaleCart
+              cart={cart}
+              currency={currency}
+              taxRate={taxRate}
+              customers={customers.data?.results ?? []}
+              customerId={customerId}
+              setCustomerId={setCustomerId}
+              discountInput={discountInput}
+              setDiscountInput={setDiscountInput}
+              discount={discount}
+              subtotal={subtotal}
+              tax={tax}
+              total={total}
+              shortages={shortages}
+              onCharge={() => {
+                setCartOpen(false);
+                setPayOpen(true);
+              }}
+              onClose={() => setCartOpen(false)}
+            />
+          </DialogPrimitive.Content>
+        </DialogPrimitive.Portal>
+      </DialogPrimitive.Root>
 
       <PaymentDialog
         open={payOpen}
@@ -419,6 +410,151 @@ export default function POSPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+/** The current-sale body — customer, line items, discount/tax, totals and the
+ *  Clear/Charge actions. Rendered in the desktop side panel and in the mobile
+ *  bottom-sheet; it's a flex column so the line list scrolls while the header
+ *  and totals stay put. `onClose` (mobile only) adds a close control. */
+function SaleCart({
+  cart,
+  currency,
+  taxRate,
+  customers,
+  customerId,
+  setCustomerId,
+  discountInput,
+  setDiscountInput,
+  discount,
+  subtotal,
+  tax,
+  total,
+  shortages,
+  onCharge,
+  onClose,
+}: {
+  cart: CartState;
+  currency: string;
+  taxRate: number;
+  customers: { id: string; name: string }[];
+  customerId: string;
+  setCustomerId: (value: string) => void;
+  discountInput: string;
+  setDiscountInput: (value: string) => void;
+  discount: number;
+  subtotal: number;
+  tax: number;
+  total: number;
+  shortages: CartLine[];
+  onCharge: () => void;
+  onClose?: () => void;
+}) {
+  return (
+    <>
+      <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
+        <span className="text-sm font-semibold">Current sale</span>
+        <div className="flex items-center gap-1">
+          <Select value={customerId} onValueChange={setCustomerId}>
+            <SelectTrigger className="h-8 w-40 sm:w-44">
+              <SelectValue placeholder="Walk-in" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Walk-in customer</SelectItem>
+              {customers.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {onClose && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0 text-muted-foreground lg:hidden"
+              onClick={onClose}
+              aria-label="Close current sale"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
+        {cart.lines.length === 0 ? (
+          <p className="px-2 py-8 text-center text-sm text-muted-foreground">
+            Tap a product to add it to the sale.
+          </p>
+        ) : (
+          cart.lines.map((line) => (
+            <CartRow key={line.productId} line={line} currency={currency} />
+          ))
+        )}
+      </div>
+
+      <div className="space-y-3 border-t px-4 py-3">
+        <label className="flex items-center gap-2">
+          <span className="w-20 text-xs">Discount</span>
+          <Input
+            inputMode="decimal"
+            placeholder="0"
+            className="h-8"
+            value={discountInput}
+            onChange={(e) => setDiscountInput(e.target.value)}
+          />
+        </label>
+        {taxRate > 0 && (
+          <label className="flex items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              checked={cart.taxEnabled}
+              onChange={(e) => cart.setTaxEnabled(e.target.checked)}
+            />
+            Apply {taxRate}% tax
+          </label>
+        )}
+
+        <div className="space-y-1 text-sm">
+          <Row label="Subtotal" value={formatMoney(subtotal, currency)} />
+          {discount > 0 && <Row label="Discount" value={`−${formatMoney(discount, currency)}`} />}
+          {tax > 0 && <Row label="Tax" value={formatMoney(tax, currency)} />}
+          <div className="flex justify-between pt-1 text-base font-semibold">
+            <span>Total</span>
+            <span className="font-mono tabular-nums">{formatMoney(total, currency)}</span>
+          </div>
+        </div>
+
+        {shortages.length > 0 && (
+          <p role="alert" className="flex items-start gap-1.5 text-xs text-destructive">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span>
+              Not enough stock for{" "}
+              {shortages.map((l) => `${l.name} (${l.stock} left)`).join(", ")}. Lower the quantity to
+              continue.
+            </span>
+          </p>
+        )}
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="flex-1"
+            disabled={cart.lines.length === 0}
+            onClick={() => cart.clear()}
+          >
+            Clear
+          </Button>
+          <Button
+            className="flex-1"
+            disabled={cart.lines.length === 0 || total < 0 || shortages.length > 0}
+            onClick={onCharge}
+          >
+            Charge
+          </Button>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -463,13 +599,13 @@ function CartRow({ line, currency }: { line: CartLine; currency: string }) {
           <Plus className="h-3 w-3" />
         </Button>
       </div>
-      <div className="w-16 text-right font-mono text-sm tabular-nums">
+      <div className="w-20 shrink-0 pl-1 text-right font-mono text-sm tabular-nums">
         {formatMoney(line.unitPrice * line.quantity, currency)}
       </div>
       <Button
         variant="ghost"
         size="icon"
-        className="h-7 w-7 text-muted-foreground"
+        className="h-7 w-7 shrink-0 text-muted-foreground"
         onClick={() => remove(line.productId)}
       >
         <Trash2 className="h-3.5 w-3.5" />

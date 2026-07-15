@@ -15,7 +15,7 @@ export interface CartLine {
 /** Outcome of trying to add a product, so the POS can explain refusals. */
 export type AddResult = "added" | "out-of-stock" | "at-stock-limit";
 
-interface CartState {
+export interface CartState {
   shopId: string | null;
   lines: CartLine[];
   discount: number; // minor units

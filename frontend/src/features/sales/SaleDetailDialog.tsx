@@ -86,7 +86,7 @@ export function SaleDetailDialog({
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
+              <DialogTitle className="flex flex-wrap items-center gap-2 pr-6">
                 Sale · {money(sale.total)}
                 <Badge variant={sale.status === "voided" ? "destructive" : "accent"}>
                   {sale.status}
@@ -95,16 +95,37 @@ export function SaleDetailDialog({
             </DialogHeader>
 
             <div className="space-y-4">
-              {/* Who / when */}
-              <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+              {/* Who / when — one column on phones so long values (a cashier
+                  email) have room to wrap; paired columns from sm up. */}
+              <dl className="grid grid-cols-1 gap-x-4 gap-y-2.5 text-sm sm:grid-cols-2">
                 <Meta label="Date" value={formatDateTime(sale.created_at)} />
                 <Meta label="Cashier" value={sale.cashier_email ?? "—"} />
                 <Meta label="Customer" value={sale.customer_name ?? "Walk-in"} />
                 {sale.voided_at && <Meta label="Voided" value={formatDateTime(sale.voided_at)} />}
               </dl>
 
-              {/* Items */}
-              <div className="rounded-md border">
+              {/* Items — stacked receipt lines on phones, full table from sm up
+                  (four money columns don't fit a phone width). */}
+              <ul className="divide-y rounded-md border text-sm sm:hidden">
+                {sale.items.map((item) => (
+                  <li key={item.id} className="flex items-start justify-between gap-3 p-3">
+                    <div className="min-w-0">
+                      <p className="break-words font-medium">{item.name_snapshot}</p>
+                      <p className="font-mono text-xs text-muted-foreground">
+                        {item.sku_snapshot}
+                      </p>
+                      <p className="mt-0.5 font-mono text-xs tabular-nums text-muted-foreground">
+                        {item.quantity} × {money(item.unit_price_snapshot)}
+                      </p>
+                    </div>
+                    <span className="shrink-0 font-mono font-medium tabular-nums">
+                      {money(item.line_total)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="hidden rounded-md border sm:block">
                 <Table>
                   <TableHeader>
                     <TableRow className="border-t-0">
@@ -136,8 +157,8 @@ export function SaleDetailDialog({
                 </Table>
               </div>
 
-              {/* Totals */}
-              <div className="ml-auto max-w-56 space-y-1 text-sm">
+              {/* Totals — full width on phones, right-aligned ledger column from sm up */}
+              <div className="space-y-1 text-sm sm:ml-auto sm:max-w-56">
                 <TotalRow label="Subtotal" value={money(sale.subtotal)} />
                 {sale.discount > 0 && (
                   <TotalRow label="Discount" value={`−${money(sale.discount)}`} />
@@ -165,14 +186,14 @@ export function SaleDetailDialog({
                   </p>
                   <ul className="space-y-1 text-sm">
                     {sale.payments.map((p) => (
-                      <li key={p.id} className="flex items-center justify-between">
-                        <span>
+                      <li key={p.id} className="flex items-baseline justify-between gap-3">
+                        <span className="min-w-0">
                           {METHOD_LABELS[p.method] ?? p.method}
                           <span className="ml-1.5 text-xs text-muted-foreground">
                             {formatDateTime(p.received_at)}
                           </span>
                         </span>
-                        <span className="font-mono tabular-nums">{money(p.amount)}</span>
+                        <span className="shrink-0 font-mono tabular-nums">{money(p.amount)}</span>
                       </li>
                     ))}
                   </ul>
@@ -206,9 +227,9 @@ export function SaleDetailDialog({
 
 function Meta({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between gap-2 sm:block">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd>{value}</dd>
+    <div className="flex items-baseline justify-between gap-3 sm:block">
+      <dt className="shrink-0 text-xs text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 break-words text-right sm:text-left">{value}</dd>
     </div>
   );
 }

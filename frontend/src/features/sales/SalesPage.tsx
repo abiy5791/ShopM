@@ -3,6 +3,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { ListCard, Fact } from "@/components/list-card";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -57,6 +58,8 @@ export default function SalesPage() {
       />
 
       <Card className="overflow-hidden">
+        {/* Desktop table */}
+        <div className="hidden md:block">
         <Table>
           <TableHeader>
             <TableRow className="border-t-0">
@@ -136,6 +139,58 @@ export default function SalesPage() {
               ))}
           </TableBody>
         </Table>
+        </div>
+
+        {/* Mobile cards */}
+        <ul className="divide-y md:hidden">
+          {isLoading &&
+            Array.from({ length: 6 }).map((_, i) => (
+              <li key={i} className="px-4 py-3">
+                <Skeleton className="h-10 w-full" />
+              </li>
+            ))}
+          {!isLoading &&
+            rows.map((sale) => (
+              <li key={sale.id}>
+                <ListCard
+                  onClick={() => setDetail(sale)}
+                  title={sale.customer_name ?? "Walk-in"}
+                  subtitle={formatDateTime(sale.created_at)}
+                  meta={
+                    <>
+                      <Fact label="Items">
+                        {sale.items.reduce((units, item) => units + item.quantity, 0)}
+                      </Fact>
+                      <Badge variant={sale.status === "voided" ? "destructive" : "accent"}>
+                        {sale.status}
+                      </Badge>
+                    </>
+                  }
+                  trailing={
+                    <span className="font-mono text-sm font-semibold tabular-nums">
+                      {formatMoney(sale.total, currency)}
+                    </span>
+                  }
+                  actions={
+                    isOwner && sale.status === "completed" ? (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        aria-label="Void sale"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setVoiding(sale);
+                        }}
+                      >
+                        <Ban className="h-3.5 w-3.5" />
+                      </Button>
+                    ) : undefined
+                  }
+                />
+              </li>
+            ))}
+        </ul>
 
         {!isLoading && rows.length === 0 && (
           <div className="flex flex-col items-center gap-2 px-4 py-16 text-center">

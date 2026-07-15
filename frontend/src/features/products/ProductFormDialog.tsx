@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { minorToInput, parseMoney } from "@/lib/money";
+import { cn } from "@/lib/utils";
 import type { ApiError, Product } from "@/types";
 
 import { useActiveCurrency, useCategories, useSaveProduct, useSuppliers } from "./api";
@@ -217,14 +218,14 @@ export function ProductFormDialog({
             </Field>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <Field label="Unit" error={errors.unit?.message}>
               <Input {...register("unit")} />
             </Field>
             <Field label="Low-stock alert" error={errors.min_stock_alert?.message}>
               <Input type="number" min={0} {...register("min_stock_alert")} />
             </Field>
-            <Field label="Status">
+            <Field label="Status" className="col-span-2 sm:col-span-1">
               <Controller
                 control={control}
                 name="status"
@@ -258,9 +259,19 @@ export function ProductFormDialog({
   );
 }
 
-function Field({ label, error, children }: { label: string; error?: string; children: ReactNode }) {
+function Field({
+  label,
+  error,
+  children,
+  className,
+}: {
+  label: string;
+  error?: string;
+  children: ReactNode;
+  className?: string;
+}) {
   return (
-    <div className="space-y-1.5">
+    <div className={cn("space-y-1.5", className)}>
       <Label>{label}</Label>
       {children}
       {error && (

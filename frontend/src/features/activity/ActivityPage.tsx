@@ -2,6 +2,7 @@ import { formatDateTime } from "@/lib/utils";
 import { ScrollText, Search } from "lucide-react";
 import { useState } from "react";
 
+import { ListCard } from "@/components/list-card";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,7 +48,7 @@ export default function ActivityPage() {
       <PageHeader title="Activity log" description="Audit trail of actions in this shop." />
 
       <div className="mb-4 flex flex-wrap items-end gap-2">
-        <div className="relative w-56">
+        <div className="relative w-full sm:w-56">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search action / entity"
@@ -99,41 +100,67 @@ export default function ActivityPage() {
       </div>
 
       <Card className="overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="border-t-0">
-              <TableHead>Time</TableHead>
-              <TableHead>Action</TableHead>
-              <TableHead>User</TableHead>
-              <TableHead>Level</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading &&
-              Array.from({ length: 6 }).map((_, i) => (
-                <TableRow key={i}>
-                  {Array.from({ length: 4 }).map((__, j) => (
-                    <TableCell key={j}>
-                      <Skeleton className="h-4 w-24" />
+        {/* Desktop table */}
+        <div className="hidden md:block">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-t-0">
+                <TableHead>Time</TableHead>
+                <TableHead>Action</TableHead>
+                <TableHead>User</TableHead>
+                <TableHead>Level</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading &&
+                Array.from({ length: 6 }).map((_, i) => (
+                  <TableRow key={i}>
+                    {Array.from({ length: 4 }).map((__, j) => (
+                      <TableCell key={j}>
+                        <Skeleton className="h-4 w-24" />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              {!isLoading &&
+                rows.map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell className="whitespace-nowrap font-mono text-xs tabular-nums text-muted-foreground">
+                      {formatDateTime(row.created_at)}
                     </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            {!isLoading &&
-              rows.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell className="whitespace-nowrap font-mono text-xs tabular-nums text-muted-foreground">
-                    {formatDateTime(row.created_at)}
-                  </TableCell>
-                  <TableCell className="font-medium">{row.action}</TableCell>
-                  <TableCell className="text-muted-foreground">{row.user_email ?? "—"}</TableCell>
-                  <TableCell>
-                    <Badge variant={LEVEL_VARIANT[row.level]}>{row.level}</Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-          </TableBody>
-        </Table>
+                    <TableCell className="font-medium">{row.action}</TableCell>
+                    <TableCell className="text-muted-foreground">{row.user_email ?? "—"}</TableCell>
+                    <TableCell>
+                      <Badge variant={LEVEL_VARIANT[row.level]}>{row.level}</Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Mobile cards */}
+        <ul className="divide-y md:hidden">
+          {isLoading &&
+            Array.from({ length: 6 }).map((_, i) => (
+              <li key={i} className="px-4 py-3">
+                <Skeleton className="h-10 w-full" />
+              </li>
+            ))}
+          {!isLoading &&
+            rows.map((row) => (
+              <li key={row.id}>
+                <ListCard
+                  title={row.action}
+                  subtitle={row.user_email ?? "—"}
+                  meta={
+                    <span className="font-mono tabular-nums">{formatDateTime(row.created_at)}</span>
+                  }
+                  trailing={<Badge variant={LEVEL_VARIANT[row.level]}>{row.level}</Badge>}
+                />
+              </li>
+            ))}
+        </ul>
 
         {!isLoading && rows.length === 0 && (
           <div className="flex flex-col items-center gap-2 px-4 py-16 text-center">

@@ -12,6 +12,7 @@ import { type ChangeEvent, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { ListCard, Fact } from "@/components/list-card";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ import { formatMoney } from "@/lib/money";
 import type { Product } from "@/types";
 
 import { useActiveCurrency, useDeleteProduct, useProducts } from "./api";
+import { ProductDetailDialog } from "./ProductDetailDialog";
 import { ProductFormDialog } from "./ProductFormDialog";
 import { StockAdjustDialog } from "./StockAdjustDialog";
 import { TransactionsDialog } from "./TransactionsDialog";
@@ -62,6 +64,7 @@ export default function ProductsPage() {
   const [adjusting, setAdjusting] = useState<Product | null>(null);
   const [historyFor, setHistoryFor] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState<Product | null>(null);
+  const [detail, setDetail] = useState<Product | null>(null);
 
   const { data, isLoading, isError, refetch } = useProducts({ search, lowStock, page });
   const rows = data?.results ?? [];
@@ -151,7 +154,7 @@ export default function ProductsPage() {
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <div className="relative max-w-xs flex-1">
+        <div className="relative w-full flex-1 sm:max-w-xs">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search name, SKU or barcode"
@@ -176,86 +179,145 @@ export default function ProductsPage() {
       </div>
 
       <Card className="overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="border-t-0">
-              <TableHead>Product</TableHead>
-              <TableHead>SKU</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead className="text-right">Price</TableHead>
-              <TableHead className="text-right">Stock</TableHead>
-              <TableHead>Status</TableHead>
-              {isOwner && <TableHead className="w-10" />}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading &&
-              Array.from({ length: 6 }).map((_, i) => (
-                <TableRow key={i}>
-                  {Array.from({ length: isOwner ? 7 : 6 }).map((__, j) => (
-                    <TableCell key={j}>
-                      <Skeleton className="h-4 w-20" />
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
+        {/* Desktop table */}
+        <div className="hidden md:block">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-t-0">
+                <TableHead>Product</TableHead>
+                <TableHead>SKU</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead className="text-right">Price</TableHead>
+                <TableHead className="text-right">Stock</TableHead>
+                <TableHead>Status</TableHead>
+                {isOwner && <TableHead className="w-10" />}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading &&
+                Array.from({ length: 6 }).map((_, i) => (
+                  <TableRow key={i}>
+                    {Array.from({ length: isOwner ? 7 : 6 }).map((__, j) => (
+                      <TableCell key={j}>
+                        <Skeleton className="h-4 w-20" />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
 
-            {!isLoading &&
-              rows.map((p) => (
-                <TableRow key={p.id}>
-                  <TableCell className="font-medium">{p.name}</TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground">{p.sku}</TableCell>
-                  <TableCell className="text-muted-foreground">{p.category_name ?? "—"}</TableCell>
-                  <TableCell className="text-right font-mono tabular-nums">
-                    {formatMoney(p.selling_price, currency)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono tabular-nums">
-                    <span className="inline-flex items-center gap-1.5">
-                      {p.is_low_stock && (
-                        <Badge variant="destructive" className="px-1.5 py-0">
-                          low
-                        </Badge>
-                      )}
-                      {p.stock_cached}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={p.status === "active" ? "secondary" : "outline"}>
-                      {p.status}
-                    </Badge>
-                  </TableCell>
-                  {isOwner && (
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Actions</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEdit(p)}>Edit</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setAdjusting(p)}>
-                            Adjust stock
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setHistoryFor(p)}>
-                            Stock history
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            onClick={() => setDeleting(p)}
-                          >
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+              {!isLoading &&
+                rows.map((p) => (
+                  <TableRow
+                    key={p.id}
+                    tabIndex={0}
+                    className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                    onClick={() => setDetail(p)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setDetail(p);
+                      }
+                    }}
+                  >
+                    <TableCell className="font-medium">{p.name}</TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {p.sku}
                     </TableCell>
-                  )}
-                </TableRow>
-              ))}
-          </TableBody>
-        </Table>
+                    <TableCell className="text-muted-foreground">
+                      {p.category_name ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">
+                      {formatMoney(p.selling_price, currency)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">
+                      <span className="inline-flex items-center gap-1.5">
+                        {p.is_low_stock && (
+                          <Badge variant="destructive" className="px-1.5 py-0">
+                            low
+                          </Badge>
+                        )}
+                        {p.stock_cached}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={p.status === "active" ? "secondary" : "outline"}>
+                        {p.status}
+                      </Badge>
+                    </TableCell>
+                    {isOwner && (
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Actions</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openEdit(p)}>Edit</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setAdjusting(p)}>
+                              Adjust stock
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setHistoryFor(p)}>
+                              Stock history
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => setDeleting(p)}
+                            >
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Mobile cards */}
+        <ul className="divide-y md:hidden">
+          {isLoading &&
+            Array.from({ length: 6 }).map((_, i) => (
+              <li key={i} className="px-4 py-3">
+                <Skeleton className="h-10 w-full" />
+              </li>
+            ))}
+          {!isLoading &&
+            rows.map((p) => (
+              <li key={p.id}>
+                <ListCard
+                  onClick={() => setDetail(p)}
+                  title={p.name}
+                  subtitle={p.sku}
+                  meta={
+                    <>
+                      <Fact label="Cat">{p.category_name ?? "—"}</Fact>
+                      {p.is_low_stock && <Badge variant="destructive">low stock</Badge>}
+                    </>
+                  }
+                  trailing={
+                    <>
+                      <span className="font-mono text-sm font-semibold tabular-nums">
+                        {formatMoney(p.selling_price, currency)}
+                      </span>
+                      <span
+                        className={
+                          "font-mono text-xs tabular-nums" +
+                          (p.is_low_stock ? " text-destructive" : " text-muted-foreground")
+                        }
+                      >
+                        {p.stock_cached} in stock
+                      </span>
+                    </>
+                  }
+                />
+              </li>
+            ))}
+        </ul>
 
         {!isLoading && rows.length === 0 && (
           <div className="flex flex-col items-center gap-2 px-4 py-16 text-center">
@@ -302,6 +364,33 @@ export default function ProductsPage() {
           )}
         </div>
       )}
+
+      <ProductDetailDialog
+        product={detail}
+        currency={currency}
+        isOwner={isOwner}
+        onOpenChange={(o) => !o && setDetail(null)}
+        onEdit={() => {
+          const p = detail;
+          setDetail(null);
+          if (p) openEdit(p);
+        }}
+        onAdjust={() => {
+          const p = detail;
+          setDetail(null);
+          setAdjusting(p);
+        }}
+        onHistory={() => {
+          const p = detail;
+          setDetail(null);
+          setHistoryFor(p);
+        }}
+        onDelete={() => {
+          const p = detail;
+          setDetail(null);
+          setDeleting(p);
+        }}
+      />
 
       {isOwner && (
         <>

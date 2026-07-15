@@ -1,6 +1,7 @@
 import { Pencil, Plus, Search, Users } from "lucide-react";
 import { useState } from "react";
 
+import { ListCard } from "@/components/list-card";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -70,62 +71,118 @@ export default function CustomersPage() {
       </div>
 
       <Card className="overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="border-t-0">
-              <TableHead>Name</TableHead>
-              <TableHead>Phone</TableHead>
-              <TableHead className="text-right">Balance</TableHead>
-              <TableHead className="w-32" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading &&
-              Array.from({ length: 5 }).map((_, i) => (
-                <TableRow key={i}>
-                  {Array.from({ length: 4 }).map((__, j) => (
-                    <TableCell key={j}>
-                      <Skeleton className="h-4 w-20" />
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            {!isLoading &&
-              rows.map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell className="font-medium">{c.name}</TableCell>
-                  <TableCell className="text-muted-foreground">{c.phone || "—"}</TableCell>
-                  <TableCell
-                    className={
-                      "text-right font-mono tabular-nums " +
-                      (c.credit_balance_cached > 0 ? "text-destructive" : "")
-                    }
+        {/* Desktop table */}
+        <div className="hidden md:block">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-t-0">
+                <TableHead>Name</TableHead>
+                <TableHead>Phone</TableHead>
+                <TableHead className="text-right">Balance</TableHead>
+                <TableHead className="w-32" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading &&
+                Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i}>
+                    {Array.from({ length: 4 }).map((__, j) => (
+                      <TableCell key={j}>
+                        <Skeleton className="h-4 w-20" />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              {!isLoading &&
+                rows.map((c) => (
+                  <TableRow
+                    key={c.id}
+                    tabIndex={0}
+                    className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                    onClick={() => setDetail(c)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setDetail(c);
+                      }
+                    }}
                   >
-                    {formatMoney(c.credit_balance_cached, currency)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex justify-end gap-1">
-                      <Button variant="outline" size="sm" onClick={() => setDetail(c)}>
-                        View
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        aria-label={`Edit ${c.name}`}
-                        onClick={() => {
-                          setEditing(c);
-                          setFormOpen(true);
-                        }}
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-          </TableBody>
-        </Table>
+                    <TableCell className="font-medium">{c.name}</TableCell>
+                    <TableCell className="text-muted-foreground">{c.phone || "—"}</TableCell>
+                    <TableCell
+                      className={
+                        "text-right font-mono tabular-nums " +
+                        (c.credit_balance_cached > 0 ? "text-destructive" : "")
+                      }
+                    >
+                      {formatMoney(c.credit_balance_cached, currency)}
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <div className="flex justify-end">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          aria-label={`Edit ${c.name}`}
+                          onClick={() => {
+                            setEditing(c);
+                            setFormOpen(true);
+                          }}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Mobile cards */}
+        <ul className="divide-y md:hidden">
+          {isLoading &&
+            Array.from({ length: 5 }).map((_, i) => (
+              <li key={i} className="px-4 py-3">
+                <Skeleton className="h-10 w-full" />
+              </li>
+            ))}
+          {!isLoading &&
+            rows.map((c) => (
+              <li key={c.id}>
+                <ListCard
+                  onClick={() => setDetail(c)}
+                  title={c.name}
+                  subtitle={c.phone || "No phone"}
+                  trailing={
+                    <span
+                      className={
+                        "font-mono text-sm font-semibold tabular-nums" +
+                        (c.credit_balance_cached > 0 ? " text-destructive" : "")
+                      }
+                    >
+                      {formatMoney(c.credit_balance_cached, currency)}
+                    </span>
+                  }
+                  actions={
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      aria-label={`Edit ${c.name}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditing(c);
+                        setFormOpen(true);
+                      }}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  }
+                />
+              </li>
+            ))}
+        </ul>
 
         {!isLoading && rows.length === 0 && (
           <div className="flex flex-col items-center gap-2 px-4 py-16 text-center">

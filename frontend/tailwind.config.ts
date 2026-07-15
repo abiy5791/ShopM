@@ -62,7 +62,12 @@ export default {
       },
       fontFamily: {
         sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
-        mono: ["ui-monospace", "JetBrains Mono", "SFMono-Regular", "monospace"],
+        // IBM Plex Mono leads: the ledger face must win over the OS default so
+        // figures read the same on every machine. System monos are the fallback.
+        mono: ["'IBM Plex Mono'", "ui-monospace", "SFMono-Regular", "monospace"],
+      },
+      letterSpacing: {
+        widest: "0.14em",
       },
       keyframes: {
         "accordion-down": {

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { ListCard } from "@/components/list-card";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -17,8 +18,10 @@ import {
 } from "@/components/ui/table";
 import { useActiveShop } from "@/features/pos/api";
 import { formatMoney } from "@/lib/money";
+import type { Expense } from "@/types";
 
 import { useDeleteExpense, useExpenses } from "./api";
+import { ExpenseDetailDialog } from "./ExpenseDetailDialog";
 import { ExpenseFormDialog } from "./ExpenseFormDialog";
 
 export default function ExpensesPage() {
@@ -27,6 +30,7 @@ export default function ExpensesPage() {
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [detail, setDetail] = useState<Expense | null>(null);
   const { data, isLoading, isError, refetch } = useExpenses(page);
   const del = useDeleteExpense();
   const rows = data?.results ?? [];
@@ -55,68 +59,97 @@ export default function ExpensesPage() {
       />
 
       <Card className="overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="border-t-0">
-              <TableHead>Date</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-              <TableHead>Receipt</TableHead>
-              <TableHead className="w-10" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading &&
-              Array.from({ length: 5 }).map((_, i) => (
-                <TableRow key={i}>
-                  {Array.from({ length: 6 }).map((__, j) => (
-                    <TableCell key={j}>
-                      <Skeleton className="h-4 w-20" />
+        {/* Desktop table */}
+        <div className="hidden md:block">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-t-0">
+                <TableHead>Date</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
+                <TableHead>Receipt</TableHead>
+                <TableHead className="w-10" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading &&
+                Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i}>
+                    {Array.from({ length: 6 }).map((__, j) => (
+                      <TableCell key={j}>
+                        <Skeleton className="h-4 w-20" />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              {!isLoading &&
+                rows.map((e) => (
+                  <TableRow key={e.id}>
+                    <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
+                      {e.date}
                     </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            {!isLoading &&
-              rows.map((e) => (
-                <TableRow key={e.id}>
-                  <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
-                    {e.date}
-                  </TableCell>
-                  <TableCell>{e.category_name ?? "—"}</TableCell>
-                  <TableCell className="text-muted-foreground">{e.description || "—"}</TableCell>
-                  <TableCell className="text-right font-mono tabular-nums">
-                    {formatMoney(e.amount, currency)}
-                  </TableCell>
-                  <TableCell>
-                    {e.receipt_image_url ? (
-                      <a
-                        href={e.receipt_image_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-accent underline-offset-2 hover:underline"
+                    <TableCell>{e.category_name ?? "—"}</TableCell>
+                    <TableCell className="text-muted-foreground">{e.description || "—"}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">
+                      {formatMoney(e.amount, currency)}
+                    </TableCell>
+                    <TableCell>
+                      {e.receipt_image_url ? (
+                        <a
+                          href={e.receipt_image_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-accent underline-offset-2 hover:underline"
+                        >
+                          View
+                        </a>
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground"
+                        aria-label="Delete expense"
+                        onClick={() => setDeleting(e.id)}
                       >
-                        View
-                      </a>
-                    ) : (
-                      "—"
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground"
-                      aria-label="Delete expense"
-                      onClick={() => setDeleting(e.id)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-          </TableBody>
-        </Table>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Mobile cards */}
+        <ul className="divide-y md:hidden">
+          {isLoading &&
+            Array.from({ length: 5 }).map((_, i) => (
+              <li key={i} className="px-4 py-3">
+                <Skeleton className="h-10 w-full" />
+              </li>
+            ))}
+          {!isLoading &&
+            rows.map((e) => (
+              <li key={e.id}>
+                <ListCard
+                  onClick={() => setDetail(e)}
+                  title={e.category_name ?? "Expense"}
+                  subtitle={e.date}
+                  meta={e.description ? <span className="truncate">{e.description}</span> : undefined}
+                  trailing={
+                    <span className="font-mono text-sm font-semibold tabular-nums">
+                      {formatMoney(e.amount, currency)}
+                    </span>
+                  }
+                />
+              </li>
+            ))}
+        </ul>
 
         {!isLoading && rows.length === 0 && (
           <div className="flex flex-col items-center gap-2 px-4 py-16 text-center">
@@ -161,6 +194,16 @@ export default function ExpensesPage() {
       )}
 
       <ExpenseFormDialog open={open} onOpenChange={setOpen} currency={currency} />
+      <ExpenseDetailDialog
+        expense={detail}
+        currency={currency}
+        onOpenChange={(o) => !o && setDetail(null)}
+        onDelete={() => {
+          const id = detail?.id ?? null;
+          setDetail(null);
+          setDeleting(id);
+        }}
+      />
       <ConfirmDialog
         open={deleting !== null}
         onOpenChange={(o) => !o && setDeleting(null)}

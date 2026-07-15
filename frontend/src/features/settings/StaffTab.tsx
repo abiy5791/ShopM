@@ -1,6 +1,7 @@
 import { Plus, Search, UserCog } from "lucide-react";
 import { useState } from "react";
 
+import { ListCard } from "@/components/list-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -65,67 +66,104 @@ export function StaffTab() {
             </p>
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Branches</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Last login</TableHead>
-                <TableHead className="w-16 text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          <>
+            {/* Desktop table */}
+            <div className="hidden md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Branches</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Last login</TableHead>
+                    <TableHead className="w-16 text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rows.map((member) => {
+                    const isSelf = member.id === me?.id;
+                    return (
+                      <TableRow key={member.id} className={member.is_active ? "" : "opacity-60"}>
+                        <TableCell className="font-medium">
+                          {member.full_name}
+                          {isSelf && (
+                            <Badge variant="secondary" className="ml-2">
+                              You
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{member.email}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {member.memberships.map((m) => (
+                              <Badge key={m.id} variant="outline">
+                                {m.shop_name} · {m.role}
+                              </Badge>
+                            ))}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {member.is_active ? (
+                            <Badge variant="accent">Active</Badge>
+                          ) : (
+                            <Badge variant="secondary">Deactivated</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {member.last_login ? formatDateTime(member.last_login) : "Never"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {!isSelf && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8"
+                              onClick={() => setSelected(member)}
+                            >
+                              Manage
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Mobile cards */}
+            <ul className="-mx-6 divide-y border-t md:hidden">
               {rows.map((member) => {
                 const isSelf = member.id === me?.id;
                 return (
-                  <TableRow key={member.id} className={member.is_active ? "" : "opacity-60"}>
-                    <TableCell className="font-medium">
-                      {member.full_name}
-                      {isSelf && (
-                        <Badge variant="secondary" className="ml-2">
-                          You
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{member.email}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {member.memberships.map((m) => (
-                          <Badge key={m.id} variant="outline">
-                            {m.shop_name} · {m.role}
-                          </Badge>
-                        ))}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {member.is_active ? (
-                        <Badge variant="accent">Active</Badge>
-                      ) : (
-                        <Badge variant="secondary">Deactivated</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {member.last_login ? formatDateTime(member.last_login) : "Never"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {!isSelf && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8"
-                          onClick={() => setSelected(member)}
-                        >
-                          Manage
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
+                  <li key={member.id}>
+                    <ListCard
+                      className={member.is_active ? "" : "opacity-60"}
+                      onClick={isSelf ? undefined : () => setSelected(member)}
+                      title={member.full_name}
+                      subtitle={member.email}
+                      meta={
+                        <>
+                          {isSelf && <Badge variant="secondary">You</Badge>}
+                          {member.is_active ? (
+                            <Badge variant="accent">Active</Badge>
+                          ) : (
+                            <Badge variant="secondary">Deactivated</Badge>
+                          )}
+                          {member.memberships.map((m) => (
+                            <Badge key={m.id} variant="outline">
+                              {m.shop_name} · {m.role}
+                            </Badge>
+                          ))}
+                        </>
+                      }
+                    />
+                  </li>
                 );
               })}
-            </TableBody>
-          </Table>
+            </ul>
+          </>
         )}
 
         <StaffFormDialog open={creating} onOpenChange={setCreating} />
