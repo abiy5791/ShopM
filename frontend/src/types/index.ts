@@ -102,6 +102,8 @@ export interface Supplier {
   phone: string;
   address: string;
   notes: string;
+  // Integer minor units (plan §3.5) — what the shop owes this supplier.
+  payable_cached: number;
   created_at: string;
 }
 

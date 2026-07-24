@@ -33,7 +33,7 @@ export function MobileNav() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-sidebar-foreground/70 hover:bg-white/10 hover:text-sidebar-foreground"
+                className="text-sidebar-foreground/70 hover:bg-sidebar-foreground/10 hover:text-sidebar-foreground"
                 aria-label="Close navigation"
               >
                 <X className="h-5 w-5" />

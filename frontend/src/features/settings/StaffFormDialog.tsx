@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
+import { PasswordInput } from "@/components/password-input";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -129,9 +130,8 @@ export function StaffFormDialog({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="staff-password">Password</Label>
-            <Input
+            <PasswordInput
               id="staff-password"
-              type="password"
               autoComplete="new-password"
               {...register("password")}
             />

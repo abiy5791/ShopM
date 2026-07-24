@@ -12,6 +12,7 @@ import PurchasesPage from "@/features/purchases/PurchasesPage";
 import ReportsPage from "@/features/reports/ReportsPage";
 import SalesPage from "@/features/sales/SalesPage";
 import SettingsPage from "@/features/settings/SettingsPage";
+import SuppliersPage from "@/features/suppliers/SuppliersPage";
 
 import { RequireAuth, RoleGate } from "./guards";
 import { AppShell } from "./layout/AppShell";
@@ -59,6 +60,14 @@ export function AppRouter() {
           element={
             <RoleGate allow={["owner"]}>
               <PurchasesPage />
+            </RoleGate>
+          }
+        />
+        <Route
+          path="suppliers"
+          element={
+            <RoleGate allow={["owner"]}>
+              <SuppliersPage />
             </RoleGate>
           }
         />

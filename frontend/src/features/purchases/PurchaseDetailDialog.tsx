@@ -1,8 +1,24 @@
+import { Loader2, Pencil, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+
 import { DetailField } from "@/components/detail";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -15,7 +31,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatMoney } from "@/lib/money";
-import type { PaymentStatus, Purchase } from "@/types";
+import type { ApiError, PaymentStatus, Purchase } from "@/types";
+import type { AxiosError } from "axios";
+
+import { useDeletePurchase } from "./api";
 
 const STATUS_VARIANT: Record<PaymentStatus, "accent" | "secondary" | "destructive"> = {
   paid: "accent",
@@ -23,19 +42,39 @@ const STATUS_VARIANT: Record<PaymentStatus, "accent" | "secondary" | "destructiv
   unpaid: "destructive",
 };
 
-/** Everything about one stock purchase: line items, totals and payment status. */
+/** Everything about one stock purchase: line items, totals and payment status.
+ *  Owners can edit or delete it from here (the whole section is owner-only). */
 export function PurchaseDetailDialog({
   purchase,
   currency,
   onOpenChange,
+  onEdit,
 }: {
   purchase: Purchase | null;
   currency: string;
   onOpenChange: (open: boolean) => void;
+  onEdit: (purchase: Purchase) => void;
 }) {
+  const del = useDeletePurchase();
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
   if (!purchase) return null;
   const money = (v: number) => formatMoney(v, currency);
   const outstanding = purchase.total - purchase.amount_paid;
+
+  async function handleDelete() {
+    if (!purchase) return;
+    try {
+      await del.mutateAsync(purchase.id);
+      toast.success("Purchase deleted — stock reversed");
+      setConfirmDelete(false);
+      onOpenChange(false);
+    } catch (err) {
+      const data = (err as AxiosError<ApiError>).response?.data;
+      toast.error(data?.detail ?? "Could not delete the purchase.");
+      setConfirmDelete(false);
+    }
+  }
 
   return (
     <Dialog open onOpenChange={onOpenChange}>
@@ -131,6 +170,47 @@ export function PurchaseDetailDialog({
             </div>
           )}
         </div>
+
+        <DialogFooter className="gap-2 sm:justify-between">
+          <Button
+            variant="ghost"
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => setConfirmDelete(true)}
+          >
+            <Trash2 className="h-4 w-4" /> Delete
+          </Button>
+          <Button onClick={() => onEdit(purchase)}>
+            <Pencil className="h-4 w-4" /> Edit
+          </Button>
+        </DialogFooter>
+
+        <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this purchase?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This reverses the {purchase.items.length}{" "}
+                {purchase.items.length === 1 ? "item" : "items"} it stocked in and updates the
+                supplier balance. It can&apos;t be undone. If any of these units were already sold,
+                the delete will be blocked.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={del.isPending}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault(); // keep the dialog open until the request resolves
+                  handleDelete();
+                }}
+                disabled={del.isPending}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {del.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                Delete purchase
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </DialogContent>
     </Dialog>
   );

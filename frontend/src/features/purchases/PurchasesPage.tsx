@@ -33,10 +33,22 @@ export default function PurchasesPage() {
   const shop = useActiveShop();
   const currency = shop?.currency ?? "ETB";
   const [page, setPage] = useState(1);
-  const [open, setOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<Purchase | null>(null);
   const [detail, setDetail] = useState<Purchase | null>(null);
   const { data, isLoading, isError, refetch } = usePurchases(page);
   const rows = data?.results ?? [];
+
+  function openNew() {
+    setEditing(null);
+    setFormOpen(true);
+  }
+
+  function openEdit(purchase: Purchase) {
+    setDetail(null); // close the detail view before opening the editor
+    setEditing(purchase);
+    setFormOpen(true);
+  }
 
   return (
     <div>
@@ -44,7 +56,7 @@ export default function PurchasesPage() {
         title="Purchases"
         description="Record stock purchases from suppliers. Each purchase stocks items in."
         actions={
-          <Button size="sm" onClick={() => setOpen(true)}>
+          <Button size="sm" onClick={openNew}>
             <Plus className="h-4 w-4" /> New purchase
           </Button>
         }
@@ -187,11 +199,17 @@ export default function PurchasesPage() {
         </div>
       )}
 
-      <PurchaseFormDialog open={open} onOpenChange={setOpen} currency={currency} />
+      <PurchaseFormDialog
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        currency={currency}
+        purchase={editing}
+      />
       <PurchaseDetailDialog
         purchase={detail}
         currency={currency}
         onOpenChange={(o) => !o && setDetail(null)}
+        onEdit={openEdit}
       />
     </div>
   );

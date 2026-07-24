@@ -12,6 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { PasswordInput } from "@/components/password-input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -147,9 +148,8 @@ export function StaffDetailDialog({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="detail-password">New password (optional)</Label>
-              <Input
+              <PasswordInput
                 id="detail-password"
-                type="password"
                 autoComplete="new-password"
                 placeholder="Leave blank to keep the current password"
                 value={password}
@@ -221,11 +221,7 @@ export function StaffDetailDialog({
                       <SelectItem value="owner">Manager</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Button
-                    className="shrink-0 sm:h-8"
-                    onClick={grant}
-                    disabled={!grantShop || busy}
-                  >
+                  <Button className="shrink-0 sm:h-8" onClick={grant} disabled={!grantShop || busy}>
                     Add
                   </Button>
                 </div>

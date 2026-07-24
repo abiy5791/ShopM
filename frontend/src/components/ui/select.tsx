@@ -48,9 +48,10 @@ const SelectContent = React.forwardRef<
     >
       <SelectPrimitive.Viewport
         className={cn(
-          "p-1",
-          position === "popper" &&
-            "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]",
+          // Scroll when the list is taller than the popover (max-h-72). Without
+          // overflow-y-auto here the content is clipped with no way to reach it.
+          "max-h-72 overflow-y-auto p-1",
+          position === "popper" && "w-full min-w-[var(--radix-select-trigger-width)]",
         )}
       >
         {children}

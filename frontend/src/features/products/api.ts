@@ -39,6 +39,24 @@ export function useProducts(params: ProductListParams) {
   });
 }
 
+/**
+ * All products in the active shop for pickers (purchase/sale forms) — a single
+ * large page rather than the paginated list, so no item is silently missing.
+ */
+export function useAllProducts() {
+  const activeShopId = useAuthStore((s) => s.activeShopId);
+  return useQuery({
+    queryKey: ["products", "all", activeShopId],
+    enabled: Boolean(activeShopId),
+    queryFn: async () =>
+      (
+        await api.get<Paginated<Product>>("/products", {
+          params: { page_size: 200, ordering: "name" },
+        })
+      ).data.results,
+  });
+}
+
 export function useCategories() {
   const activeShopId = useAuthStore((s) => s.activeShopId);
   return useQuery({

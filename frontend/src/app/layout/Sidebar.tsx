@@ -1,6 +1,6 @@
-import { Store } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
+import { Logo } from "@/components/logo";
 import { useAuthStore } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import type { RoleName } from "@/types";
@@ -26,7 +26,7 @@ export function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
               "group relative flex items-center gap-3 rounded-md py-2 pl-4 pr-3 text-sm font-medium transition-colors duration-150",
               isActive
                 ? "bg-sidebar-accent/15 text-sidebar-foreground"
-                : "text-sidebar-foreground/60 hover:bg-white/5 hover:text-sidebar-foreground",
+                : "text-sidebar-foreground/60 hover:bg-sidebar-foreground/[0.06] hover:text-sidebar-foreground",
             )
           }
         >
@@ -43,7 +43,9 @@ export function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
               <item.icon
                 className={cn(
                   "h-4 w-4 shrink-0 transition-colors",
-                  isActive ? "text-sidebar-accent" : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground/80",
+                  isActive
+                    ? "text-sidebar-accent"
+                    : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground/80",
                 )}
               />
               {item.label}
@@ -55,28 +57,23 @@ export function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-/** The wordmark, matched to the login screen: IBM Plex Mono with a blinking
- *  block caret, so the brand reads as one continuous POS terminal from the
- *  sign-in screen through the live app. */
+/** The brand mark + wordmark, matched to the login screen so the identity reads
+ *  as one continuous product from sign-in through the live app. The logo inherits
+ *  the sidebar text color, so it recolors with the light/dark theme. */
 export function BrandMark() {
   return (
     <div className="flex h-14 items-center gap-2.5 px-5">
-      <span className="flex h-7 w-7 items-center justify-center rounded-md bg-sidebar-accent text-white">
-        <Store className="h-4 w-4" />
-      </span>
-      <span className="font-mono text-base font-bold tracking-tight">
-        ShopM
-        <span className="caret-blink ml-0.5 inline-block h-3.5 w-[0.5rem] translate-y-[1px] bg-sidebar-accent align-middle" />
-      </span>
+      <Logo className="h-7 w-7 text-sidebar-foreground" />
+      <span className="font-mono text-base font-bold tracking-tight">ShopM</span>
     </div>
   );
 }
 
 export function Sidebar() {
   return (
-    <aside className="bg-receipt-dots hidden w-60 shrink-0 flex-col border-r border-white/5 bg-sidebar text-sidebar-foreground md:flex">
+    <aside className="bg-receipt-dots hidden w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex">
       <BrandMark />
-      <div className="mx-5 border-t border-white/5" />
+      <div className="mx-5 border-t border-sidebar-border" />
       <NavLinks />
       <div className="px-5 py-3 font-mono text-[10px] uppercase tracking-widest text-sidebar-foreground/35">
         Offline-ready · v0.1

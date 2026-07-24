@@ -51,10 +51,11 @@
     --chart-3: #2a78d6;
     --chart-4: #eda100;
 
-    /* Sidebar (dense dashboard chrome) */
-    --sidebar: 222 47% 11%; /* slate-950-ish */
-    --sidebar-foreground: 210 40% 96%;
+    /* Sidebar — follows the theme: a light chrome in light mode. */
+    --sidebar: 0 0% 100%; /* #FFFFFF, one step off the app background */
+    --sidebar-foreground: 222 47% 11%; /* #0F172A */
     --sidebar-accent: 161 94% 30%;
+    --sidebar-border: 214 20% 91%; /* matches --border */
 
     --radius: 0.5rem;
   }
@@ -89,6 +90,7 @@
     --sidebar: 222 47% 7%;
     --sidebar-foreground: 210 40% 90%;
     --sidebar-accent: 161 84% 39%;
+    --sidebar-border: 217 19% 18%; /* subtle line on the dark chrome */
   }
 }
 
@@ -116,10 +118,7 @@
   /* Receipt/thermal-paper texture — the login brand panel's dot field, made
      reusable so the dark chrome (sidebar, brand surfaces) shares one identity. */
   .bg-receipt-dots {
-    background-image: radial-gradient(
-      hsl(var(--sidebar-foreground) / 0.05) 1px,
-      transparent 1px
-    );
+    background-image: radial-gradient(hsl(var(--sidebar-foreground) / 0.05) 1px, transparent 1px);
     background-size: 22px 22px;
   }
   /* One elevation for every card: a soft two-step shadow in light, carried by

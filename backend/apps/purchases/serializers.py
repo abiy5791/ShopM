@@ -11,7 +11,23 @@ class PurchaseItemInputSerializer(serializers.Serializer):
     unit_cost = serializers.IntegerField(min_value=0)
 
 
-class PurchaseCreateSerializer(serializers.Serializer):
+class _PurchaseValidatorsMixin:
+    """Shop-scoping checks shared by the create and update serializers."""
+
+    def validate_supplier(self, supplier):
+        shop = self.context.get("active_shop")
+        if supplier is not None and shop is not None and supplier.shop_id != shop.id:
+            raise serializers.ValidationError("Supplier not found in the active shop.")
+        return supplier
+
+    def _check_items_shop(self, items):
+        shop = self.context.get("active_shop")
+        for item in items:
+            if shop is not None and item["product"].shop_id != shop.id:
+                raise serializers.ValidationError("Product not found in the active shop.")
+
+
+class PurchaseCreateSerializer(_PurchaseValidatorsMixin, serializers.Serializer):
     supplier = serializers.PrimaryKeyRelatedField(
         queryset=Supplier.objects.all(), required=False, allow_null=True
     )
@@ -23,17 +39,27 @@ class PurchaseCreateSerializer(serializers.Serializer):
     def validate_items(self, items):
         if not items:
             raise serializers.ValidationError("A purchase must have at least one item.")
-        shop = self.context.get("active_shop")
-        for item in items:
-            if shop is not None and item["product"].shop_id != shop.id:
-                raise serializers.ValidationError("Product not found in the active shop.")
+        self._check_items_shop(items)
         return items
 
-    def validate_supplier(self, supplier):
-        shop = self.context.get("active_shop")
-        if supplier is not None and shop is not None and supplier.shop_id != shop.id:
-            raise serializers.ValidationError("Supplier not found in the active shop.")
-        return supplier
+
+class PurchaseUpdateSerializer(_PurchaseValidatorsMixin, serializers.Serializer):
+    """Edit a purchase. Every field is optional (PATCH semantics): omit ``items``
+    to change only payment/supplier/date/notes without touching stock."""
+
+    supplier = serializers.PrimaryKeyRelatedField(
+        queryset=Supplier.objects.all(), required=False, allow_null=True
+    )
+    items = PurchaseItemInputSerializer(many=True, required=False)
+    amount_paid = serializers.IntegerField(min_value=0, required=False)
+    date = serializers.DateField(required=False, allow_null=True)
+    notes = serializers.CharField(required=False, allow_blank=True)
+
+    def validate_items(self, items):
+        if not items:
+            raise serializers.ValidationError("A purchase must have at least one item.")
+        self._check_items_shop(items)
+        return items
 
 
 class PurchaseItemSerializer(serializers.ModelSerializer):
