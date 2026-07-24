@@ -19,11 +19,13 @@ export function ExpenseDetailDialog({
   currency,
   onOpenChange,
   onDelete,
+  onViewReceipt,
 }: {
   expense: Expense | null;
   currency: string;
   onOpenChange: (open: boolean) => void;
   onDelete: () => void;
+  onViewReceipt: (url: string) => void;
 }) {
   if (!expense) return null;
 
@@ -42,14 +44,13 @@ export function ExpenseDetailDialog({
           </div>
           <DetailField label="Receipt">
             {expense.receipt_image_url ? (
-              <a
-                href={expense.receipt_image_url}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                type="button"
+                onClick={() => onViewReceipt(expense.receipt_image_url!)}
                 className="text-accent underline-offset-2 hover:underline"
               >
                 View image
-              </a>
+              </button>
             ) : (
               "—"
             )}

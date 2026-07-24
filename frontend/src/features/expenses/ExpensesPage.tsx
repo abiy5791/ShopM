@@ -23,6 +23,7 @@ import type { Expense } from "@/types";
 import { useDeleteExpense, useExpenses } from "./api";
 import { ExpenseDetailDialog } from "./ExpenseDetailDialog";
 import { ExpenseFormDialog } from "./ExpenseFormDialog";
+import { ReceiptDialog } from "./ReceiptDialog";
 
 export default function ExpensesPage() {
   const shop = useActiveShop();
@@ -31,6 +32,7 @@ export default function ExpensesPage() {
   const [open, setOpen] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [detail, setDetail] = useState<Expense | null>(null);
+  const [receipt, setReceipt] = useState<string | null>(null);
   const { data, isLoading, isError, refetch } = useExpenses(page);
   const del = useDeleteExpense();
   const rows = data?.results ?? [];
@@ -96,14 +98,13 @@ export default function ExpensesPage() {
                     </TableCell>
                     <TableCell>
                       {e.receipt_image_url ? (
-                        <a
-                          href={e.receipt_image_url}
-                          target="_blank"
-                          rel="noreferrer"
+                        <button
+                          type="button"
+                          onClick={() => setReceipt(e.receipt_image_url)}
                           className="text-accent underline-offset-2 hover:underline"
                         >
                           View
-                        </a>
+                        </button>
                       ) : (
                         "—"
                       )}
@@ -203,7 +204,12 @@ export default function ExpensesPage() {
           setDetail(null);
           setDeleting(id);
         }}
+        onViewReceipt={(url) => {
+          setDetail(null);
+          setReceipt(url);
+        }}
       />
+      <ReceiptDialog url={receipt} onOpenChange={(o) => !o && setReceipt(null)} />
       <ConfirmDialog
         open={deleting !== null}
         onOpenChange={(o) => !o && setDeleting(null)}
