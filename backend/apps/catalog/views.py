@@ -80,9 +80,7 @@ class ProductViewSet(ShopScopedModelViewSet):
         # Server-side SKU: generate a unique, category-prefixed code when the
         # client doesn't supply one (the form no longer asks the user to type it).
         if not serializer.validated_data.get("sku"):
-            extra["sku"] = generate_sku(
-                self.active_shop, serializer.validated_data.get("category")
-            )
+            extra["sku"] = generate_sku(self.active_shop, serializer.validated_data.get("category"))
         # New products fall back to the shop's low-stock default (v2 plan §5)
         # so low-stock alerts work without per-product setup.
         if "min_stock_alert" not in serializer.validated_data:

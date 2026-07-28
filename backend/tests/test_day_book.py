@@ -63,9 +63,7 @@ def test_day_book_totals_and_sections(shop_with_day):
     assert len(data["sales"]) == 1
     assert data["sales"][0]["item_count"] == 1  # one line, quantity 2
     assert data["sales"][0]["total"] == 2000
-    assert data["expenses"] == [
-        {"category": "Rent", "description": "daily rent", "amount": 500}
-    ]
+    assert data["expenses"] == [{"category": "Rent", "description": "daily rent", "amount": 500}]
     # The sale created above emits a sale.create activity row for the day.
     assert any(a["action"] == "sale.create" for a in data["activity"])
 
@@ -143,12 +141,21 @@ def test_day_book_prorates_monthly_expense(make_user, make_shop, auth):
     cat = ExpenseCategory.objects.create(shop=shop, name="Salary")
     # Br5,000.00 monthly salary + a Br30.00 one-time cost, both dated today.
     Expense.objects.create(
-        shop=shop, category=cat, amount=500000, date=today,
-        recurrence=Expense.Recurrence.MONTHLY, description="cashier salary", user=owner,
+        shop=shop,
+        category=cat,
+        amount=500000,
+        date=today,
+        recurrence=Expense.Recurrence.MONTHLY,
+        description="cashier salary",
+        user=owner,
     )
     Expense.objects.create(
-        shop=shop, amount=3000, date=today,
-        recurrence=Expense.Recurrence.ONE_TIME, description="tea", user=owner,
+        shop=shop,
+        amount=3000,
+        date=today,
+        recurrence=Expense.Recurrence.ONE_TIME,
+        description="tea",
+        user=owner,
     )
 
     e_year, e_month, _ = ethiopian.to_ethiopian(today)

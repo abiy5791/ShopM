@@ -137,9 +137,7 @@ def day_book(shop, on_date: date | None = None) -> dict:
     # behalf and remitted, so it is never part of sales revenue or profit.
     net_sales = (agg["subtotal"] or 0) - discount_total
     sales_count = sales_qs.count()
-    items_sold = (
-        SaleItem.objects.filter(sale__in=sales_qs).aggregate(q=Sum("quantity"))["q"] or 0
-    )
+    items_sold = SaleItem.objects.filter(sale__in=sales_qs).aggregate(q=Sum("quantity"))["q"] or 0
     gross_profit = net_sales - _cogs(sales_qs)
 
     # Best-selling products of the day (by units), with the revenue they brought.
@@ -249,7 +247,9 @@ def dashboard(shop, on_date: date | None = None) -> dict:
     today = on_date or timezone.now().date()
     day_start, day_end = _datetime_range(today, today)
     todays_sales = _completed_sales(shop).filter(created_at__gte=day_start, created_at__lt=day_end)
-    agg = todays_sales.aggregate(total=Sum("total"), subtotal=Sum("subtotal"), discount=Sum("discount"))
+    agg = todays_sales.aggregate(
+        total=Sum("total"), subtotal=Sum("subtotal"), discount=Sum("discount")
+    )
     sales_total = agg["total"] or 0
     sales_count = todays_sales.count()
     cogs = _cogs(todays_sales)
@@ -355,7 +355,11 @@ def _ethiopian_bucket(day: date, period: str) -> tuple[str, str, str]:
     year, month, _ = ethiopian.to_ethiopian(day)
     if period == "weekly":
         monday = day - timedelta(days=day.weekday())
-        return (monday.isoformat(), monday.isoformat(), f"Week of {ethiopian.format_ethiopian(monday)}")
+        return (
+            monday.isoformat(),
+            monday.isoformat(),
+            f"Week of {ethiopian.format_ethiopian(monday)}",
+        )
     if period == "monthly":
         label = f"{ethiopian.MONTH_NAMES[month - 1]} {year}"
         return (f"{year:04d}-{month:02d}", label, label)
@@ -388,7 +392,14 @@ def sales_report(shop, *, period="daily", start=None, end=None) -> dict:
         b = buckets.get(sort_key)
         if b is None:
             iso = day.isoformat()
-            b = {"date": series_date, "label": label, "count": 0, "total": 0, "start": iso, "end": iso}
+            b = {
+                "date": series_date,
+                "label": label,
+                "count": 0,
+                "total": 0,
+                "start": iso,
+                "end": iso,
+            }
             buckets[sort_key] = b
         b["count"] += count
         b["total"] += total

@@ -60,9 +60,7 @@ def test_edit_payment_only_leaves_stock_untouched(make_user, make_shop, auth):
     assert created["payment_status"] == "unpaid"
     ledger_rows_before = InventoryTransaction.objects.filter(product=product).count()
 
-    resp = client.patch(
-        f"/api/v1/purchases/{created['id']}", {"amount_paid": 5000}, format="json"
-    )
+    resp = client.patch(f"/api/v1/purchases/{created['id']}", {"amount_paid": 5000}, format="json")
     assert resp.status_code == 200, resp.content
     assert resp.data["payment_status"] == "paid"
     product.refresh_from_db()

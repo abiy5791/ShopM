@@ -6,13 +6,17 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('expenses', '0001_initial'),
+        ("expenses", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='expense',
-            name='recurrence',
-            field=models.CharField(choices=[('one_time', 'One-time'), ('monthly', 'Monthly')], default='one_time', max_length=16),
+            model_name="expense",
+            name="recurrence",
+            field=models.CharField(
+                choices=[("one_time", "One-time"), ("monthly", "Monthly")],
+                default="one_time",
+                max_length=16,
+            ),
         ),
     ]
