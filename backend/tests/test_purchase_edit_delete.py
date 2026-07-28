@@ -4,8 +4,8 @@ supplier payable stays in sync (extends plan §7, Phase 3)."""
 import pytest
 
 from apps.catalog.models import Product, Supplier
-from apps.inventory.services import ledger_stock, record_transaction
 from apps.inventory.models import InventoryTransaction
+from apps.inventory.services import ledger_stock, record_transaction
 from apps.purchases.models import Purchase
 
 pytestmark = pytest.mark.django_db
