@@ -1,14 +1,13 @@
 import { PageHeader } from "@/components/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-import { AppearanceTab } from "./AppearanceTab";
 import { BranchesTab } from "./BranchesTab";
 import { BusinessTab } from "./BusinessTab";
 import { PreferencesTab } from "./PreferencesTab";
 import { StaffTab } from "./StaffTab";
 
-/** Owner control centre (v2 plan §3): business identity, branches, staff,
- *  preferences, and appearance — everything an owner runs the business with. */
+/** Owner control centre (v2 plan §3): business identity, branches, staff, and
+ *  preferences — everything an owner runs the business with. */
 export default function SettingsPage() {
   return (
     <div>
@@ -20,7 +19,6 @@ export default function SettingsPage() {
           <TabsTrigger value="branches">Branches</TabsTrigger>
           <TabsTrigger value="staff">Staff</TabsTrigger>
           <TabsTrigger value="preferences">Preferences</TabsTrigger>
-          <TabsTrigger value="appearance">Appearance</TabsTrigger>
         </TabsList>
 
         <TabsContent value="business">
@@ -34,9 +32,6 @@ export default function SettingsPage() {
         </TabsContent>
         <TabsContent value="preferences">
           <PreferencesTab />
-        </TabsContent>
-        <TabsContent value="appearance">
-          <AppearanceTab />
         </TabsContent>
       </Tabs>
     </div>

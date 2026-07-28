@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models import F
 from django.http import HttpResponse
 from drf_spectacular.utils import extend_schema
@@ -66,15 +67,44 @@ class ProductViewSet(ShopScopedModelViewSet):
             metadata={"sku": product.sku, "name": product.name},
         )
 
+    def _parse_initial_stock(self) -> int:
+        try:
+            return max(0, int(self.request.data.get("initial_stock") or 0))
+        except (TypeError, ValueError):
+            return 0
+
     def perform_create(self, serializer):
+        from .services import generate_sku
+
         extra = {}
+        # Server-side SKU: generate a unique, category-prefixed code when the
+        # client doesn't supply one (the form no longer asks the user to type it).
+        if not serializer.validated_data.get("sku"):
+            extra["sku"] = generate_sku(
+                self.active_shop, serializer.validated_data.get("category")
+            )
         # New products fall back to the shop's low-stock default (v2 plan §5)
         # so low-stock alerts work without per-product setup.
         if "min_stock_alert" not in serializer.validated_data:
             settings = getattr(self.active_shop, "settings", None)
             if settings is not None:
                 extra["min_stock_alert"] = settings.low_stock_default
-        product = serializer.save(shop=self.active_shop, **extra)
+
+        initial_stock = self._parse_initial_stock()
+        with transaction.atomic():
+            product = serializer.save(shop=self.active_shop, **extra)
+            # Opening stock still flows through the ledger (the one place stock
+            # ever changes), so the balance stays reconcilable.
+            if initial_stock:
+                from apps.inventory.services import record_transaction
+
+                record_transaction(
+                    product=product,
+                    quantity=initial_stock,
+                    type="adjustment",
+                    user=self.request.user,
+                    notes="Opening stock",
+                )
         self._log("product.create", product)
 
     def perform_update(self, serializer):
@@ -84,6 +114,20 @@ class ProductViewSet(ShopScopedModelViewSet):
     def perform_destroy(self, instance):
         instance.delete()  # soft delete (plan §3.6)
         self._log("product.delete", instance)
+
+    @extend_schema(
+        responses={200: {"type": "array", "items": {"type": "string"}}},
+        description="Distinct units of measure already used in this shop (for pick-lists).",
+    )
+    @action(detail=False, methods=["get"])
+    def units(self, request):
+        units = (
+            Product.objects.filter(shop=self.active_shop)
+            .exclude(unit="")
+            .values_list("unit", flat=True)
+            .distinct()
+        )
+        return Response(sorted(set(units)))
 
     @extend_schema(
         responses={200: {"type": "object"}},

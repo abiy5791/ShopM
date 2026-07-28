@@ -16,6 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useActiveShop } from "@/features/pos/api";
+import { formatEthiopian } from "@/lib/ethiopian";
 import { formatMoney } from "@/lib/money";
 import type { PaymentStatus, Purchase } from "@/types";
 
@@ -102,7 +103,7 @@ export default function PurchasesPage() {
                     }}
                   >
                     <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
-                      {p.date}
+                      {formatEthiopian(p.date)}
                     </TableCell>
                     <TableCell>{p.supplier_name ?? "—"}</TableCell>
                     <TableCell className="text-right tabular-nums">{p.items.length}</TableCell>
@@ -135,7 +136,7 @@ export default function PurchasesPage() {
                 <ListCard
                   onClick={() => setDetail(p)}
                   title={p.supplier_name ?? "Purchase"}
-                  subtitle={p.date}
+                  subtitle={formatEthiopian(p.date)}
                   meta={
                     <>
                       <Fact label="Items">{p.items.length}</Fact>

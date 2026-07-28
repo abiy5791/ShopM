@@ -24,11 +24,27 @@ export function useExpenseCategories() {
   });
 }
 
+/** Invalidate every view that reads expense figures (list + daily close + dashboard). */
+function invalidateExpenseViews(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ["expenses"] });
+  qc.invalidateQueries({ queryKey: ["day-book"] });
+  qc.invalidateQueries({ queryKey: ["dashboard"] });
+}
+
 export function useCreateExpense() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (form: FormData) => (await api.post<Expense>("/expenses", form)).data,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["expenses"] }),
+    onSuccess: () => invalidateExpenseViews(qc),
+  });
+}
+
+export function useUpdateExpense() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, body }: { id: string; body: FormData | Record<string, unknown> }) =>
+      (await api.patch<Expense>(`/expenses/${id}`, body)).data,
+    onSuccess: () => invalidateExpenseViews(qc),
   });
 }
 
@@ -36,6 +52,6 @@ export function useDeleteExpense() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => api.delete(`/expenses/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["expenses"] }),
+    onSuccess: () => invalidateExpenseViews(qc),
   });
 }

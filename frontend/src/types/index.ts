@@ -150,7 +150,13 @@ export interface InventoryTransaction {
   created_at: string;
 }
 
-export type PaymentMethod = "cash" | "bank" | "mobile_money";
+export type PaymentMethod =
+  | "cash"
+  | "telebirr"
+  | "cbe"
+  | "abyssinia"
+  | "bank"
+  | "mobile_money";
 
 export interface SaleItemInput {
   product: string;
@@ -263,11 +269,14 @@ export interface ExpenseCategory {
   created_at: string;
 }
 
+export type ExpenseRecurrence = "one_time" | "monthly";
+
 export interface Expense {
   id: string;
   category: string | null;
   category_name: string | null;
   amount: number;
+  recurrence: ExpenseRecurrence;
   date: string;
   description: string;
   receipt_image_url: string | null;
@@ -315,6 +324,51 @@ export interface DashboardData {
   recent_sales: { id: string; total: number; created_at: string }[];
 }
 
+export interface DayBookData {
+  date: string;
+  date_ethiopian: string;
+  currency: string;
+  summary: {
+    sales_total: number;
+    net_sales: number;
+    tax_total: number;
+    sales_count: number;
+    items_sold: number;
+    gross_profit: number;
+    expenses_total: number;
+    direct_expenses: number;
+    monthly_prorated: number;
+    monthly_full: number;
+    net_profit: number;
+    cash_received: number;
+    settlements_received: number;
+    discount_total: number;
+  };
+  by_method: { method: PaymentMethod; total: number }[];
+  top_products: { name: string; quantity: number; revenue: number }[];
+  sales: {
+    id: string;
+    created_at: string;
+    total: number;
+    item_count: number;
+    cashier_name: string;
+    customer_name: string | null;
+  }[];
+  expenses: { category: string; description: string; amount: number }[];
+  monthly_expenses: {
+    category: string;
+    description: string;
+    amount: number;
+    per_day: number;
+  }[];
+  activity: {
+    created_at: string;
+    action: string;
+    user_email: string | null;
+    level: "info" | "warn" | "critical";
+  }[];
+}
+
 export interface ReportSummaryItem {
   label: string;
   value: number;
@@ -325,6 +379,8 @@ export interface SalesSeriesPoint {
   date: string;
   total: number;
   count: number;
+  start?: string; // Gregorian ISO — the bucket's first day (for drill-down)
+  end?: string; // Gregorian ISO — the bucket's last day
 }
 
 export interface ProfitSeriesPoint {
@@ -355,8 +411,18 @@ export interface ReportData {
   // Chart payloads (v2 plan §4) — present per report type.
   series?: (SalesSeriesPoint | ProfitSeriesPoint | CashflowSeriesPoint)[];
   by_method?: { method: PaymentMethod; total: number }[];
+  /** Sales billed but not yet collected (credit) — payments + this = total sales. */
+  unpaid_credit?: number;
   by_category?: { category: string; total: number }[];
   top_sellers?: { name: string; quantity: number }[];
+  stock_value?: {
+    at_cost: number;
+    expected_sales: number;
+    potential_profit: number;
+    tax_rate: number;
+    expected_tax: number;
+    total_if_sold: number;
+  };
 }
 
 export interface OwnerShopSummary extends DashboardData {

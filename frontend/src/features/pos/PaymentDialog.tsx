@@ -24,6 +24,9 @@ import type { PaymentInput, PaymentMethod } from "@/types";
 
 const METHODS: { value: PaymentMethod; label: string }[] = [
   { value: "cash", label: "Cash" },
+  { value: "telebirr", label: "Telebirr" },
+  { value: "cbe", label: "CBE" },
+  { value: "abyssinia", label: "Bank of Abyssinia" },
   { value: "bank", label: "Bank" },
   { value: "mobile_money", label: "Mobile money" },
 ];

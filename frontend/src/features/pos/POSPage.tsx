@@ -35,6 +35,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCustomers } from "@/features/customers/api";
 import { useAuthStore } from "@/lib/auth";
 import { formatMoney, parseMoney } from "@/lib/money";
+import { cn } from "@/lib/utils";
 import type { PaymentInput, ReceiptData, SalePayload } from "@/types";
 
 import { checkout, stockShortages, usePendingSync, usePosCatalog, useActiveShop } from "./api";
@@ -94,6 +95,11 @@ export default function POSPage() {
   const total = cartTotal(cart.lines, discount, taxRate, cart.taxEnabled);
   const shortages = cartShortages(cart.lines);
   const itemCount = cart.lines.reduce((n, l) => n + l.quantity, 0);
+  // Quantity of each product already in the sale, so the grid can show a badge.
+  const cartQty = useMemo(
+    () => new Map(cart.lines.map((l) => [l.productId, l.quantity])),
+    [cart.lines],
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -268,15 +274,28 @@ export default function POSPage() {
               {filtered.map((p) => {
                 const out = p.stock_cached <= 0;
                 const low = !out && p.stock_cached <= p.min_stock_alert;
+                const qty = cartQty.get(p.id) ?? 0;
+                const selected = qty > 0;
                 return (
                   <button
                     key={p.id}
                     type="button"
                     onClick={() => addToCart(p)}
                     disabled={out}
-                    className="flex flex-col rounded-md border bg-card p-2.5 text-left transition-colors hover:border-accent hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-border disabled:hover:bg-card"
+                    aria-label={selected ? `${p.name} — ${qty} in sale` : p.name}
+                    className={cn(
+                      "relative flex flex-col rounded-md border bg-card p-2.5 text-left transition-colors hover:border-accent hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-border disabled:hover:bg-card",
+                      selected && "border-accent bg-accent/5 ring-1 ring-accent",
+                    )}
                   >
-                    <span className="line-clamp-2 text-sm font-medium">{p.name}</span>
+                    {selected && (
+                      <span className="absolute right-1.5 top-1.5 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-accent px-1 text-[11px] font-semibold tabular-nums text-accent-foreground shadow-sm">
+                        {qty}
+                      </span>
+                    )}
+                    <span className={cn("line-clamp-2 text-sm font-medium", selected && "pr-6")}>
+                      {p.name}
+                    </span>
                     <span className="mt-0.5 font-mono text-xs text-muted-foreground">{p.sku}</span>
                     <span className="mt-auto flex items-end justify-between gap-1 pt-1">
                       <span className="font-mono text-sm font-semibold tabular-nums">

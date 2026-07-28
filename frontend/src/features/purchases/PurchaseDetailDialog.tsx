@@ -30,6 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatEthiopian } from "@/lib/ethiopian";
 import { formatMoney } from "@/lib/money";
 import type { ApiError, PaymentStatus, Purchase } from "@/types";
 import type { AxiosError } from "axios";
@@ -90,7 +91,7 @@ export function PurchaseDetailDialog({
 
         <div className="space-y-4">
           <dl className="grid grid-cols-1 gap-x-4 gap-y-2.5 text-sm sm:grid-cols-2">
-            <DetailField label="Date">{purchase.date}</DetailField>
+            <DetailField label="Date">{formatEthiopian(purchase.date)}</DetailField>
             <DetailField label="Supplier">{purchase.supplier_name ?? "—"}</DetailField>
           </dl>
 

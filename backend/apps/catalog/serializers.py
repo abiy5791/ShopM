@@ -21,6 +21,8 @@ class ProductSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source="category.name", read_only=True, default=None)
     supplier_name = serializers.CharField(source="supplier.name", read_only=True, default=None)
     is_low_stock = serializers.BooleanField(read_only=True)
+    # Optional: when omitted or blank, the server auto-generates a unique SKU.
+    sku = serializers.CharField(max_length=64, required=False, allow_blank=True)
 
     class Meta:
         model = Product
@@ -57,7 +59,7 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def validate_sku(self, value):
         shop = self.context.get("active_shop")
-        if shop is None:
+        if not value or shop is None:
             return value
         qs = Product.objects.filter(shop=shop, sku=value)
         if self.instance is not None:

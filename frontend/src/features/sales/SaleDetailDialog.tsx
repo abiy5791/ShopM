@@ -27,6 +27,9 @@ import { useSaleReceipt } from "./api";
 
 const METHOD_LABELS: Record<string, string> = {
   cash: "Cash",
+  telebirr: "Telebirr",
+  cbe: "CBE",
+  abyssinia: "Bank of Abyssinia",
   bank: "Bank",
   mobile_money: "Mobile money",
 };

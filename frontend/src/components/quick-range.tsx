@@ -1,5 +1,7 @@
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ethiopianMonthRange } from "@/lib/ethiopian";
+
+import { EthiopianDatePicker } from "./ethiopian-date-picker";
 
 export interface DateRange {
   start: string; // YYYY-MM-DD ("" = server default)
@@ -19,15 +21,16 @@ function presets(): { label: string; range: DateRange }[] {
   yesterday.setDate(today.getDate() - 1);
   const weekAgo = new Date(today);
   weekAgo.setDate(today.getDate() - 6);
-  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-  const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-  const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
+  // "This/Last month" follow the ETHIOPIAN calendar (Meskerem, Tikimt, …), since
+  // the shop's month is Ethiopian. "This month" ends today; last month is full.
+  const thisMonth = ethiopianMonthRange(0);
+  const lastMonth = ethiopianMonthRange(-1);
   return [
     { label: "Today", range: { start: iso(today), end: iso(today) } },
     { label: "Yesterday", range: { start: iso(yesterday), end: iso(yesterday) } },
     { label: "Last 7 days", range: { start: iso(weekAgo), end: iso(today) } },
-    { label: "This month", range: { start: iso(monthStart), end: iso(today) } },
-    { label: "Last month", range: { start: iso(lastMonthStart), end: iso(lastMonthEnd) } },
+    { label: thisMonth.label, range: { start: thisMonth.start, end: iso(today) } },
+    { label: lastMonth.label, range: { start: lastMonth.start, end: lastMonth.end } },
   ];
 }
 
@@ -38,54 +41,61 @@ function presets(): { label: string; range: DateRange }[] {
 export function QuickRangePicker({
   value,
   onChange,
+  showPresets = true,
 }: {
   value: DateRange;
   onChange: (range: DateRange) => void;
+  /** Show the one-click preset buttons (Today, This month, …). */
+  showPresets?: boolean;
 }) {
   const options = presets();
   return (
     <div className="flex flex-wrap items-end gap-2">
-      <div className="flex flex-wrap rounded-md border bg-card p-0.5">
-        {options.map((p) => {
-          const active = value.start === p.range.start && value.end === p.range.end;
-          return (
-            <button
-              key={p.label}
-              type="button"
-              onClick={() => onChange(p.range)}
-              className={
-                "rounded px-2.5 py-1.5 text-xs font-medium transition-colors " +
-                (active ? "bg-secondary text-secondary-foreground" : "hover:bg-muted")
-              }
-            >
-              {p.label}
-            </button>
-          );
-        })}
-      </div>
+      {showPresets && (
+        <div className="flex flex-wrap rounded-md border bg-card p-0.5">
+          {options.map((p) => {
+            const active = value.start === p.range.start && value.end === p.range.end;
+            return (
+              <button
+                key={p.label}
+                type="button"
+                onClick={() => onChange(p.range)}
+                className={
+                  "rounded px-2.5 py-1.5 text-xs font-medium transition-colors " +
+                  (active ? "bg-secondary text-secondary-foreground" : "hover:bg-muted")
+                }
+              >
+                {p.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
       <div className="flex items-end gap-2">
         <div>
           <Label htmlFor="range-start" className="text-xs">
             From
           </Label>
-          <Input
+          <EthiopianDatePicker
             id="range-start"
-            type="date"
-            className="h-8"
+            className="w-40"
+            placeholder="From"
+            clearable
             value={value.start}
-            onChange={(e) => onChange({ ...value, start: e.target.value })}
+            onChange={(start) => onChange({ ...value, start })}
           />
         </div>
         <div>
           <Label htmlFor="range-end" className="text-xs">
             To
           </Label>
-          <Input
+          <EthiopianDatePicker
             id="range-end"
-            type="date"
-            className="h-8"
+            className="w-40"
+            placeholder="To"
+            clearable
             value={value.end}
-            onChange={(e) => onChange({ ...value, end: e.target.value })}
+            onChange={(end) => onChange({ ...value, end })}
           />
         </div>
       </div>

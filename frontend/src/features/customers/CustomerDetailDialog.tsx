@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatEthiopian } from "@/lib/ethiopian";
 import { formatMoney, parseMoney } from "@/lib/money";
 import type { Customer } from "@/types";
 
@@ -95,7 +96,7 @@ export function CustomerDetailDialog({
               data.sales.map((s) => (
                 <Row
                   key={s.id}
-                  left={new Date(s.created_at).toLocaleDateString()}
+                  left={formatEthiopian(s.created_at)}
                   right={formatMoney(s.total, currency)}
                   badge={s.status === "voided" ? "voided" : undefined}
                 />
@@ -111,7 +112,7 @@ export function CustomerDetailDialog({
               data.payments.map((p) => (
                 <Row
                   key={p.id}
-                  left={new Date(p.received_at).toLocaleDateString()}
+                  left={formatEthiopian(p.received_at)}
                   right={formatMoney(p.amount, currency)}
                   badge={p.sale ? "sale" : "settlement"}
                 />

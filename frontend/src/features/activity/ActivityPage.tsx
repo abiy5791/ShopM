@@ -1,7 +1,7 @@
-import { formatDateTime } from "@/lib/utils";
 import { ScrollText, Search } from "lucide-react";
 import { useState } from "react";
 
+import { EthiopianDatePicker } from "@/components/ethiopian-date-picker";
 import { ListCard } from "@/components/list-card";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatEthiopianDateTime } from "@/lib/ethiopian";
 
 import { type ActivityFilters, useActivity } from "./api";
 
@@ -77,24 +78,26 @@ export default function ActivityPage() {
           <Label htmlFor="after" className="text-xs">
             From
           </Label>
-          <Input
+          <EthiopianDatePicker
+            clearable
             id="after"
-            type="date"
-            className="h-9"
+            className="w-40"
+            placeholder="From"
             value={filters.created_after ?? ""}
-            onChange={(e) => set("created_after", e.target.value || undefined)}
+            onChange={(iso) => set("created_after", iso || undefined)}
           />
         </div>
         <div>
           <Label htmlFor="before" className="text-xs">
             To
           </Label>
-          <Input
+          <EthiopianDatePicker
+            clearable
             id="before"
-            type="date"
-            className="h-9"
+            className="w-40"
+            placeholder="To"
             value={filters.created_before ?? ""}
-            onChange={(e) => set("created_before", e.target.value || undefined)}
+            onChange={(iso) => set("created_before", iso || undefined)}
           />
         </div>
       </div>
@@ -126,7 +129,7 @@ export default function ActivityPage() {
                 rows.map((row) => (
                   <TableRow key={row.id}>
                     <TableCell className="whitespace-nowrap font-mono text-xs tabular-nums text-muted-foreground">
-                      {formatDateTime(row.created_at)}
+                      {formatEthiopianDateTime(row.created_at)}
                     </TableCell>
                     <TableCell className="font-medium">{row.action}</TableCell>
                     <TableCell className="text-muted-foreground">{row.user_email ?? "—"}</TableCell>
@@ -154,7 +157,7 @@ export default function ActivityPage() {
                   title={row.action}
                   subtitle={row.user_email ?? "—"}
                   meta={
-                    <span className="font-mono tabular-nums">{formatDateTime(row.created_at)}</span>
+                    <span className="font-mono tabular-nums">{formatEthiopianDateTime(row.created_at)}</span>
                   }
                   trailing={<Badge variant={LEVEL_VARIANT[row.level]}>{row.level}</Badge>}
                 />

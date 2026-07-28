@@ -13,10 +13,12 @@ from __future__ import annotations
 from datetime import date, datetime, time, timedelta
 
 from django.db.models import BigIntegerField, Count, ExpressionWrapper, F, Sum
-from django.db.models.functions import TruncDate, TruncMonth, TruncWeek, TruncYear
+from django.db.models.functions import TruncDate
 from django.utils import timezone
 
+from apps.activity.models import ActivityLog
 from apps.catalog.models import Product
+from apps.common import ethiopian
 from apps.expenses.models import Expense
 from apps.purchases.models import Purchase
 from apps.sales.models import Payment, Sale, SaleItem
@@ -51,18 +53,211 @@ def _cogs(sale_qs) -> int:
     return SaleItem.objects.filter(sale__in=sale_qs).aggregate(c=Sum(_LINE_COST))["c"] or 0
 
 
+def _expense_charge(shop, day: date) -> dict:
+    """Expenses to charge against a single day.
+
+    One-time expenses dated that day are charged in full; each monthly expense
+    (salary, rent) is entered once for its month and charged as its per-day share
+    (amount ÷ days in that month). This spreads fixed overhead across the month
+    per the accounting matching principle, so a single day isn't sunk by a whole
+    month's cost. Used by both the daily dashboard and the My Day close.
+    """
+    one_time = list(
+        Expense.objects.filter(
+            shop=shop, date=day, recurrence=Expense.Recurrence.ONE_TIME
+        ).select_related("category")
+    )
+    direct_total = sum(e.amount for e in one_time)
+
+    # Prorate over the ETHIOPIAN month the day falls in — 30 days for months
+    # 1–12, 5/6 for Pagumē — since the shop runs on the Ethiopian calendar and
+    # there is no 31-day month. Monthly expenses are grouped by that same
+    # Ethiopian month (via its Gregorian bounds), not the Gregorian month.
+    e_year, e_month, _ = ethiopian.to_ethiopian(day)
+    days_in_month = ethiopian.month_length(e_year, e_month)
+    g_start, g_end = ethiopian.month_bounds_gregorian(day)
+    monthly = list(
+        Expense.objects.filter(
+            shop=shop,
+            recurrence=Expense.Recurrence.MONTHLY,
+            date__gte=g_start,
+            date__lte=g_end,
+        ).select_related("category")
+    )
+    monthly_items = [
+        {
+            "category": e.category.name if e.category else "Uncategorized",
+            "description": e.description,
+            "amount": e.amount,
+            "per_day": round(e.amount / days_in_month),
+        }
+        for e in monthly
+    ]
+    monthly_prorated = sum(m["per_day"] for m in monthly_items)
+
+    return {
+        "one_time": one_time,
+        "direct_total": direct_total,
+        "monthly_items": monthly_items,
+        "monthly_prorated": monthly_prorated,
+        "monthly_full": sum(e.amount for e in monthly),
+        "charge_total": direct_total + monthly_prorated,
+    }
+
+
+# ---------------------------------------------------------------- day book
+def day_book(shop, on_date: date | None = None) -> dict:
+    """Everything that happened on a single day — the owner's "My Day" screen.
+
+    One round-trip so the day can be reviewed and printed as an end-of-day
+    close: headline totals, payment-method split, every sale, every expense, and
+    the day's activity trail. All figures are scoped to `on_date` in the shop's
+    timezone and tie out to the same ledgers the reports use.
+    """
+    day = on_date or timezone.now().date()
+    day_start, day_end = _datetime_range(day, day)
+
+    sales_qs = (
+        _completed_sales(shop)
+        .filter(created_at__gte=day_start, created_at__lt=day_end)
+        .select_related("cashier", "customer")
+        .annotate(item_count=Count("items"))
+        .order_by("created_at")
+    )
+    agg = sales_qs.aggregate(
+        total=Sum("total"),
+        subtotal=Sum("subtotal"),
+        discount=Sum("discount"),
+        tax=Sum("tax"),
+    )
+    sales_total = agg["total"] or 0  # what customers paid, tax included
+    discount_total = agg["discount"] or 0
+    tax_total = agg["tax"] or 0
+    # Revenue that is actually the shop's — tax is collected on the state's
+    # behalf and remitted, so it is never part of sales revenue or profit.
+    net_sales = (agg["subtotal"] or 0) - discount_total
+    sales_count = sales_qs.count()
+    items_sold = (
+        SaleItem.objects.filter(sale__in=sales_qs).aggregate(q=Sum("quantity"))["q"] or 0
+    )
+    gross_profit = net_sales - _cogs(sales_qs)
+
+    # Best-selling products of the day (by units), with the revenue they brought.
+    top_products = [
+        {"name": r["name_snapshot"], "quantity": r["quantity"], "revenue": r["revenue"] or 0}
+        for r in SaleItem.objects.filter(sale__in=sales_qs)
+        .values("name_snapshot")
+        .annotate(quantity=Sum("quantity"), revenue=Sum("line_total"))
+        .order_by("-quantity")[:5]
+    ]
+
+    # Expenses charged to this day: one-time in full + monthly prorated per-day.
+    charge = _expense_charge(shop, day)
+    expenses_total = charge["charge_total"]
+    net_profit = gross_profit - expenses_total
+
+    # Payments TOWARD today's sales, split by method — this reconciles with the
+    # day's sales total. Standalone credit settlements (a customer paying off an
+    # older debt) are money in today but not from today's sales, so they are
+    # excluded here and reported separately below.
+    method_rows = (
+        Payment.objects.filter(
+            sale__in=sales_qs, received_at__gte=day_start, received_at__lt=day_end
+        )
+        .values("method")
+        .annotate(total=Sum("amount"))
+        .order_by("-total")
+    )
+    by_method = [{"method": r["method"], "total": r["total"] or 0} for r in method_rows]
+    cash_received = next((r["total"] for r in by_method if r["method"] == Payment.Method.CASH), 0)
+
+    # Credit settlements received today (standalone payments, not tied to a sale).
+    settlements_received = (
+        Payment.objects.filter(
+            shop=shop,
+            sale__isnull=True,
+            received_at__gte=day_start,
+            received_at__lt=day_end,
+        ).aggregate(s=Sum("amount"))["s"]
+        or 0
+    )
+
+    sales = [
+        {
+            "id": str(s.id),
+            "created_at": s.created_at.isoformat(),
+            "total": s.total,
+            "item_count": s.item_count,
+            "cashier_name": s.cashier.full_name if s.cashier else "",
+            "customer_name": s.customer.name if s.customer else None,
+        }
+        for s in sales_qs
+    ]
+    expenses = [
+        {
+            "category": e.category.name if e.category else "Uncategorized",
+            "description": e.description,
+            "amount": e.amount,
+        }
+        for e in sorted(charge["one_time"], key=lambda e: -e.amount)
+    ]
+    activity = [
+        {
+            "created_at": a.created_at.isoformat(),
+            "action": a.action,
+            "user_email": a.user.email if a.user else None,
+            "level": a.level,
+        }
+        for a in ActivityLog.objects.filter(
+            shop=shop, created_at__gte=day_start, created_at__lt=day_end
+        )
+        .select_related("user")
+        .order_by("-created_at")[:100]
+    ]
+
+    return {
+        "date": str(day),
+        "date_ethiopian": ethiopian.format_ethiopian(day),
+        "currency": _currency(shop),
+        "summary": {
+            "sales_total": sales_total,
+            "net_sales": net_sales,
+            "tax_total": tax_total,
+            "sales_count": sales_count,
+            "items_sold": items_sold,
+            "gross_profit": gross_profit,
+            "expenses_total": expenses_total,
+            "direct_expenses": charge["direct_total"],
+            "monthly_prorated": charge["monthly_prorated"],
+            "monthly_full": charge["monthly_full"],
+            "net_profit": net_profit,
+            "cash_received": cash_received,
+            "settlements_received": settlements_received,
+            "discount_total": discount_total,
+        },
+        "by_method": by_method,
+        "top_products": top_products,
+        "sales": sales,
+        "expenses": expenses,
+        "monthly_expenses": charge["monthly_items"],
+        "activity": activity,
+    }
+
+
 # ---------------------------------------------------------------- dashboard
 def dashboard(shop, on_date: date | None = None) -> dict:
     today = on_date or timezone.now().date()
     day_start, day_end = _datetime_range(today, today)
     todays_sales = _completed_sales(shop).filter(created_at__gte=day_start, created_at__lt=day_end)
-    sales_total = todays_sales.aggregate(s=Sum("total"))["s"] or 0
+    agg = todays_sales.aggregate(total=Sum("total"), subtotal=Sum("subtotal"), discount=Sum("discount"))
+    sales_total = agg["total"] or 0
     sales_count = todays_sales.count()
     cogs = _cogs(todays_sales)
-    gross_profit = sales_total - cogs
-    expenses_total = (
-        Expense.objects.filter(shop=shop, date=today).aggregate(s=Sum("amount"))["s"] or 0
-    )
+    # Profit is on the shop's own revenue only — tax collected is excluded.
+    net_sales = (agg["subtotal"] or 0) - (agg["discount"] or 0)
+    gross_profit = net_sales - cogs
+    # Same fair daily charge as My Day: one-time today + monthly prorated per-day.
+    expenses_total = _expense_charge(shop, today)["charge_total"]
     net_profit = gross_profit - expenses_total
 
     cash_in = (
@@ -142,44 +337,87 @@ def _default_range(start: date | None, end: date | None) -> tuple[date, date]:
     return start, end
 
 
-_TRUNC = {
-    "daily": TruncDate,
-    "weekly": TruncWeek,
-    "monthly": TruncMonth,
-    "yearly": TruncYear,
-}
+def _as_date(value) -> date:
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    return date.fromisoformat(str(value)[:10])
+
+
+def _ethiopian_bucket(day: date, period: str) -> tuple[str, str, str]:
+    """Map a Gregorian day to an Ethiopian-calendar bucket for a report period.
+
+    Returns ``(sort_key, series_date, row_label)`` — the series_date is a plain
+    ISO date for daily/weekly (so the chart axis can render it), and an Ethiopian
+    label for monthly/yearly; the row_label is always the human Ethiopian text.
+    """
+    year, month, _ = ethiopian.to_ethiopian(day)
+    if period == "weekly":
+        monday = day - timedelta(days=day.weekday())
+        return (monday.isoformat(), monday.isoformat(), f"Week of {ethiopian.format_ethiopian(monday)}")
+    if period == "monthly":
+        label = f"{ethiopian.MONTH_NAMES[month - 1]} {year}"
+        return (f"{year:04d}-{month:02d}", label, label)
+    if period == "yearly":
+        return (f"{year:04d}", f"{year} E.C.", f"{year} E.C.")
+    # daily
+    return (day.isoformat(), day.isoformat(), ethiopian.format_ethiopian(day))
 
 
 # ---------------------------------------------------------------- sales
 def sales_report(shop, *, period="daily", start=None, end=None) -> dict:
     start, end = _default_range(start, end)
-    trunc = _TRUNC.get(period, TruncDate)
     range_start, range_end = _datetime_range(start, end)
     qs = _completed_sales(shop).filter(created_at__gte=range_start, created_at__lt=range_end)
-    grouped = (
-        qs.annotate(bucket=trunc("created_at"))
+
+    # Per-day totals, then folded into Ethiopian-calendar buckets in Python —
+    # Ethiopian months (Meskerem…Pagumē, 30 days) and years don't line up with
+    # Gregorian TruncMonth/Year, so grouping happens here, not in SQL.
+    daily_map = {
+        _as_date(g["bucket"]): (g["count"], g["total"] or 0)
+        for g in qs.annotate(bucket=TruncDate("created_at"))
         .values("bucket")
         .annotate(count=Count("id"), total=Sum("total"))
-        .order_by("bucket")
-    )
-    rows = [[str(g["bucket"])[:10], g["count"], g["total"] or 0] for g in grouped]
+    }
+    buckets: dict[str, dict] = {}
+    day = start
+    while day <= end:
+        count, total = daily_map.get(day, (0, 0))
+        sort_key, series_date, label = _ethiopian_bucket(day, period)
+        b = buckets.get(sort_key)
+        if b is None:
+            iso = day.isoformat()
+            b = {"date": series_date, "label": label, "count": 0, "total": 0, "start": iso, "end": iso}
+            buckets[sort_key] = b
+        b["count"] += count
+        b["total"] += total
+        b["end"] = day.isoformat()  # days iterate ascending → last seen is the range end
+        day += timedelta(days=1)
+    ordered = [buckets[k] for k in sorted(buckets)]
+
+    rows = [[b["label"], b["count"], b["total"]] for b in ordered]
+    series = [
+        {
+            "date": b["date"],
+            "total": b["total"],
+            "count": b["count"],
+            "start": b["start"],
+            "end": b["end"],
+        }
+        for b in ordered
+    ]
     summary_total = qs.aggregate(s=Sum("total"))["s"] or 0
     summary_count = qs.count()
-    # Chart-ready series (v2 plan §4): one point per bucket + method breakdown.
-    # Daily granularity is zero-filled so the revenue chart shows quiet days
-    # instead of silently connecting across them; coarser buckets stay sparse.
-    series = [
-        {"date": str(g["bucket"])[:10], "total": g["total"] or 0, "count": g["count"]}
-        for g in grouped
-    ]
-    if period == "daily" and (end - start).days <= 366:
-        by_date = {p["date"]: p for p in series}
-        series = []
-        day = start
-        while day <= end:
-            key = str(day)
-            series.append(by_date.get(key, {"date": key, "total": 0, "count": 0}))
-            day += timedelta(days=1)
+    items_sold = SaleItem.objects.filter(sale__in=qs).aggregate(q=Sum("quantity"))["q"] or 0
+    avg_sale = round(summary_total / summary_count) if summary_count else 0
+    # Per-period average — this is the KPI that changes with the grouping
+    # (avg per day / week / month / year); the totals above are range-wide.
+    unit = {"daily": "day", "weekly": "week", "monthly": "month", "yearly": "year"}.get(
+        period, "period"
+    )
+    n_buckets = len(ordered)
+    avg_per_period = round(summary_total / n_buckets) if n_buckets else 0
     by_method = [
         {"method": g["method"], "total": g["total"] or 0}
         for g in Payment.objects.filter(sale__in=qs)
@@ -187,6 +425,11 @@ def sales_report(shop, *, period="daily", start=None, end=None) -> dict:
         .annotate(total=Sum("amount"))
         .order_by("-total")
     ]
+    # Sales sold on credit are billed now but not yet collected, so payments
+    # received fall short of total sales by exactly the outstanding balance.
+    # Reporting it makes the two figures reconcile: payments + credit = sales.
+    paid_on_sales = Payment.objects.filter(sale__in=qs).aggregate(s=Sum("amount"))["s"] or 0
+    unpaid_credit = summary_total - paid_on_sales
     return {
         "key": "sales",
         "title": f"Sales report ({period})",
@@ -195,12 +438,16 @@ def sales_report(shop, *, period="daily", start=None, end=None) -> dict:
         "summary": [
             {"label": "Total sales", "value": summary_total, "money": True},
             {"label": "Transactions", "value": summary_count, "money": False},
+            {"label": "Avg sale", "value": avg_sale, "money": True},
+            {"label": "Items sold", "value": items_sold, "money": False},
+            {"label": f"Avg / {unit}", "value": avg_per_period, "money": True},
         ],
-        "columns": ["Date", "Transactions", "Total"],
+        "columns": ["Period", "Transactions", "Total"],
         "rows": rows,
         "money_columns": [2],
         "series": series,
         "by_method": by_method,
+        "unpaid_credit": unpaid_credit,
     }
 
 
@@ -208,11 +455,15 @@ def sales_report(shop, *, period="daily", start=None, end=None) -> dict:
 def inventory_report(shop) -> dict:
     products = Product.objects.filter(shop=shop).order_by("name")
     rows = []
-    valuation = 0
+    valuation = 0  # what the stock cost (Σ stock × purchase price)
+    expected_sales = 0  # what it would fetch at selling price (Σ stock × selling)
+    total_units = 0
     low = out = 0
     for p in products:
         line_value = p.stock_cached * p.purchase_price
         valuation += line_value
+        expected_sales += p.stock_cached * p.selling_price
+        total_units += max(0, p.stock_cached)
         if p.stock_cached <= 0:
             out += 1
         elif p.stock_cached <= p.min_stock_alert:
@@ -232,6 +483,18 @@ def inventory_report(shop) -> dict:
         .annotate(quantity=Sum("quantity"))
         .order_by("-quantity")[:8]
     ]
+    # Projection: what the current stock is worth if it all sells.
+    settings = getattr(shop, "settings", None)
+    tax_rate = float(settings.tax_rate) if settings else 0.0
+    expected_tax = int(round(expected_sales * tax_rate / 100))
+    stock_value = {
+        "at_cost": valuation,
+        "expected_sales": expected_sales,
+        "potential_profit": expected_sales - valuation,
+        "tax_rate": tax_rate,
+        "expected_tax": expected_tax,
+        "total_if_sold": expected_sales + expected_tax,
+    }
     return {
         "key": "inventory",
         "title": "Inventory report",
@@ -240,11 +503,13 @@ def inventory_report(shop) -> dict:
             {"label": "Stock valuation", "value": valuation, "money": True},
             {"label": "Low stock", "value": low, "money": False},
             {"label": "Out of stock", "value": out, "money": False},
+            {"label": "Units in stock", "value": total_units, "money": False},
         ],
         "columns": ["Product", "SKU", "Stock", "Unit cost", "Valuation"],
         "rows": rows,
         "money_columns": [3, 4],
         "top_sellers": top_sellers,
+        "stock_value": stock_value,
     }
 
 
@@ -253,7 +518,11 @@ def profit_report(shop, *, start=None, end=None) -> dict:
     start, end = _default_range(start, end)
     range_start, range_end = _datetime_range(start, end)
     qs = _completed_sales(shop).filter(created_at__gte=range_start, created_at__lt=range_end)
-    revenue = qs.aggregate(s=Sum("total"))["s"] or 0
+    agg = qs.aggregate(subtotal=Sum("subtotal"), discount=Sum("discount"), tax=Sum("tax"))
+    # Revenue is the shop's own income — tax collected is remitted to the state,
+    # so it is excluded from revenue, gross profit, and margin.
+    revenue = (agg["subtotal"] or 0) - (agg["discount"] or 0)
+    tax = agg["tax"] or 0
     cogs = _cogs(qs)
     gross = revenue - cogs
     expenses = (
@@ -270,7 +539,7 @@ def profit_report(shop, *, start=None, end=None) -> dict:
         g["bucket"]: g["s"] or 0
         for g in qs.annotate(bucket=TruncDate("created_at"))
         .values("bucket")
-        .annotate(s=Sum("total"))
+        .annotate(s=Sum("subtotal") - Sum("discount"))
     }
     daily_cogs = {
         g["bucket"]: g["s"] or 0
@@ -322,14 +591,16 @@ def profit_report(shop, *, start=None, end=None) -> dict:
                 "value": (gross * 100 // revenue) if revenue else 0,
                 "money": False,
             },
+            {"label": "Tax collected", "value": tax, "money": True},
         ],
         "columns": ["Metric", "Amount"],
         "rows": [
-            ["Revenue", revenue],
+            ["Revenue (net of tax)", revenue],
             ["Cost of goods sold", cogs],
             ["Gross profit", gross],
             ["Expenses", expenses],
             ["Net profit", net],
+            ["Tax collected (remitted, not income)", tax],
         ],
         "money_columns": [1],
         "series": series,
@@ -341,10 +612,12 @@ def profit_report(shop, *, start=None, end=None) -> dict:
 def cashflow_report(shop, *, start=None, end=None) -> dict:
     start, end = _default_range(start, end)
     range_start, range_end = _datetime_range(start, end)
+    # Money in = ALL payments received (cash + Telebirr/CBE/mobile/bank). Digital
+    # wallets and bank transfers are cash equivalents, so a cash-flow statement
+    # counts them too — not just physical cash.
     cash_in = (
         Payment.objects.filter(
             shop=shop,
-            method=Payment.Method.CASH,
             received_at__gte=range_start,
             received_at__lt=range_end,
         )
@@ -352,12 +625,16 @@ def cashflow_report(shop, *, start=None, end=None) -> dict:
         .aggregate(s=Sum("amount"))["s"]
         or 0
     )
-    expenses = (
-        Expense.objects.filter(shop=shop, date__gte=start, date__lte=end).aggregate(
-            s=Sum("amount")
-        )["s"]
-        or 0
-    )
+    # Expenses charged per day, with monthly costs prorated across the month
+    # (matching My Day and the dashboard) so a monthly expense doesn't spike the
+    # cash flow on the single day it was recorded. Over a full month the prorated
+    # daily shares still sum to the actual amount.
+    daily_expenses = {}
+    _d = start
+    while _d <= end and len(daily_expenses) <= 366:
+        daily_expenses[_d] = _expense_charge(shop, _d)["charge_total"]
+        _d += timedelta(days=1)
+    expenses = sum(daily_expenses.values())
     purchases_paid = (
         Purchase.objects.filter(shop=shop, date__gte=start, date__lte=end).aggregate(
             s=Sum("amount_paid")
@@ -371,19 +648,12 @@ def cashflow_report(shop, *, start=None, end=None) -> dict:
         g["bucket"]: g["s"] or 0
         for g in Payment.objects.filter(
             shop=shop,
-            method=Payment.Method.CASH,
             received_at__gte=range_start,
             received_at__lt=range_end,
         )
         .exclude(sale__status=Sale.Status.VOIDED)
         .annotate(bucket=TruncDate("received_at"))
         .values("bucket")
-        .annotate(s=Sum("amount"))
-    }
-    daily_expenses = {
-        g["date"]: g["s"] or 0
-        for g in Expense.objects.filter(shop=shop, date__gte=start, date__lte=end)
-        .values("date")
         .annotate(s=Sum("amount"))
     }
     daily_purchases = {
@@ -418,7 +688,7 @@ def cashflow_report(shop, *, start=None, end=None) -> dict:
         "summary": [{"label": "Net cash flow", "value": net, "money": True}],
         "columns": ["Metric", "Amount"],
         "rows": [
-            ["Cash received", cash_in],
+            ["Money received (all methods)", cash_in],
             ["Expenses paid", expenses],
             ["Purchases paid", purchases_paid],
             ["Net cash flow", net],

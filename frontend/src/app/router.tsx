@@ -4,6 +4,7 @@ import ActivityPage from "@/features/activity/ActivityPage";
 import LoginPage from "@/features/auth/LoginPage";
 import CustomersPage from "@/features/customers/CustomersPage";
 import DashboardPage from "@/features/dashboard/DashboardPage";
+import MyDayPage from "@/features/day/MyDayPage";
 import ExpensesPage from "@/features/expenses/ExpensesPage";
 import OwnerConsolePage from "@/features/owner/OwnerConsolePage";
 import POSPage from "@/features/pos/POSPage";
@@ -30,6 +31,14 @@ export function AppRouter() {
         }
       >
         <Route index element={<DashboardPage />} />
+        <Route
+          path="day"
+          element={
+            <RoleGate allow={["owner"]}>
+              <MyDayPage />
+            </RoleGate>
+          }
+        />
         <Route
           path="pos"
           element={

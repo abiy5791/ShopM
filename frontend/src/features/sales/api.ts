@@ -15,6 +15,15 @@ export function useSales(page = 1) {
   });
 }
 
+/** Fetch one full sale by id (line items, payments, totals) for the detail view. */
+export function useSale(saleId: string | null) {
+  return useQuery({
+    queryKey: ["sale", saleId],
+    enabled: Boolean(saleId),
+    queryFn: async () => (await api.get<Sale>(`/sales/${saleId}`)).data,
+  });
+}
+
 /** Shape of GET /sales/{id}/receipt (backend ReceiptSerializer). */
 interface ServerReceipt {
   shop_name: string;

@@ -12,12 +12,14 @@ import {
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
-import { HBarChart, TrendAreaChart } from "@/components/charts";
+import { TrendAreaChart } from "@/components/charts";
+import { RankedBarList } from "@/components/ranked-bar-list";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useActiveShop } from "@/features/pos/api";
 import { useAuthStore } from "@/lib/auth";
+import { formatEthiopianShort } from "@/lib/ethiopian";
 import { formatMoney } from "@/lib/money";
 import { cn, formatDateTime } from "@/lib/utils";
 
@@ -171,16 +173,15 @@ export default function DashboardPage() {
           <CardContent>
             {isLoading ? (
               <Skeleton className="h-24 w-full" />
-            ) : data && data.best_sellers.length > 0 ? (
-              <HBarChart
-                data={data.best_sellers as unknown as Record<string, unknown>[]}
-                dataKey="quantity"
-                nameKey="name"
-                name="Units sold"
-                height={Math.max(120, data.best_sellers.length * 36)}
-              />
             ) : (
-              <p className="py-6 text-center text-sm text-muted-foreground">No sales yet.</p>
+              <RankedBarList
+                items={(data?.best_sellers ?? []).map((b) => ({
+                  name: b.name,
+                  value: b.quantity,
+                }))}
+                formatValue={(v) => `${v} sold`}
+                emptyText="No sales yet."
+              />
             )}
           </CardContent>
         </Card>
@@ -321,10 +322,9 @@ function MiniStat({ label, value, hint }: { label: string; value: string; hint?:
   );
 }
 
-/** "2026-07-13" → "Jul 13", parsed as a local date so it never slips a day. */
+/** "2026-07-13" → "Hamle 6" (Ethiopian short), for the best-day hint. */
 function shortDay(iso: string): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return formatEthiopianShort(iso);
 }
 
 function QuickLink({

@@ -27,6 +27,10 @@ class ExpenseCategory(BaseModel):
 
 
 class Expense(SoftDeleteModel):
+    class Recurrence(models.TextChoices):
+        ONE_TIME = "one_time", "One-time"
+        MONTHLY = "monthly", "Monthly"
+
     shop = models.ForeignKey("shops.Shop", on_delete=models.CASCADE, related_name="expenses")
     category = models.ForeignKey(
         ExpenseCategory,
@@ -36,6 +40,11 @@ class Expense(SoftDeleteModel):
         related_name="expenses",
     )
     amount = MoneyField()
+    # A monthly cost (salary, rent) is entered once for the month; daily views
+    # charge only its per-day share so one day isn't sunk by a whole month's cost.
+    recurrence = models.CharField(
+        max_length=16, choices=Recurrence.choices, default=Recurrence.ONE_TIME
+    )
     date = models.DateField()
     description = models.CharField(max_length=512, blank=True)
     # FileField uses Django's storage abstraction — local in dev, S3 in prod by

@@ -25,6 +25,7 @@ import {
   YAxis,
 } from "recharts";
 
+import { formatEthiopianShort } from "@/lib/ethiopian";
 import { formatMoney, formatMoneyCompact } from "@/lib/money";
 
 export const CHART_COLORS = [
@@ -37,11 +38,11 @@ export const CHART_COLORS = [
 const AXIS_TICK = { fontSize: 11, fill: "hsl(var(--muted-foreground))" };
 const GRID_STROKE = "hsl(var(--border))";
 
-function shortDate(iso: string): string {
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime())
-    ? iso
-    : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+function shortDate(value: string): string {
+  // Plain ISO dates (daily/weekly buckets) render as a short Ethiopian date
+  // ("Hamle 20"); anything else is already an Ethiopian label (e.g. monthly
+  // "Hamle 2018", yearly "2018 E.C.") and passes through unchanged.
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? formatEthiopianShort(value) : value;
 }
 
 /** Theme-aware tooltip: exact money values, one row per series. */
@@ -326,18 +327,21 @@ export function DonutChart({
   currency,
   height = 220,
   totalLabel = "Total",
+  maxSlices = 4,
 }: {
   data: { name: string; value: number; color?: string }[];
   currency: string;
   height?: number;
   totalLabel?: string;
+  /** Slices to show before folding the tail into "Other". */
+  maxSlices?: number;
 }) {
   const total = data.reduce((s, d) => s + d.value, 0);
   if (!data.length || total === 0) return <EmptyChart height={height} />;
-  // Keep at most 4 slices (largest first); fold the tail into "Other".
+  // Keep at most `maxSlices` slices (largest first); fold the tail into "Other".
   const byValue = [...data].sort((a, b) => b.value - a.value);
-  const shown = byValue.slice(0, 4);
-  const rest = byValue.slice(4).reduce((s, d) => s + d.value, 0);
+  const shown = byValue.slice(0, maxSlices);
+  const rest = byValue.slice(maxSlices).reduce((s, d) => s + d.value, 0);
   // Assign hues by stable name order so entities keep their color across
   // ranges; explicit `color` wins.
   const nameOrder = shown.map((d) => d.name).sort();

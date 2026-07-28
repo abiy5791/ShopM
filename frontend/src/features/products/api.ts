@@ -75,6 +75,26 @@ export function useSuppliers() {
   });
 }
 
+/** Create a category on the fly (used when a new category name is typed in the
+ *  product form). Returns the new row so the caller can select it. */
+export function useCreateCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (name: string) => (await api.post<Category>("/categories", { name })).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] }),
+  });
+}
+
+/** Distinct units of measure already used in this shop, for the unit pick-list. */
+export function useProductUnits() {
+  const activeShopId = useAuthStore((s) => s.activeShopId);
+  return useQuery({
+    queryKey: ["product-units", activeShopId],
+    enabled: Boolean(activeShopId),
+    queryFn: async () => (await api.get<string[]>("/products/units")).data,
+  });
+}
+
 /** Active shop's currency, readable by any member (from /shops). */
 export function useActiveCurrency(): string {
   const activeShopId = useAuthStore((s) => s.activeShopId);
@@ -88,8 +108,6 @@ export function useActiveCurrency(): string {
 
 export interface ProductInput {
   name: string;
-  sku: string;
-  barcode: string;
   category: string | null;
   supplier: string | null;
   purchase_price: number;
@@ -97,6 +115,8 @@ export interface ProductInput {
   unit: string;
   min_stock_alert: number;
   status: "active" | "inactive";
+  /** Opening stock, only sent on create — the server posts it to the ledger. */
+  initial_stock?: number;
 }
 
 function useInvalidateProducts() {

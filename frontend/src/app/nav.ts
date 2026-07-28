@@ -1,6 +1,7 @@
 import {
   BarChart3,
   Building2,
+  CalendarCheck,
   ClipboardList,
   Factory,
   LayoutDashboard,
@@ -28,6 +29,7 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, phase: 5 },
+  { to: "/day", label: "My Day", icon: CalendarCheck, roles: ["owner"] },
   { to: "/pos", label: "Point of Sale", icon: ScanLine, roles: ["owner", "cashier"], phase: 2 },
   { to: "/sales", label: "Sales", icon: ClipboardList, roles: ["owner", "cashier"], phase: 8 },
   { to: "/products", label: "Products", icon: Package, phase: 1 },

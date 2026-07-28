@@ -12,7 +12,7 @@ from apps.common.permissions import ROLE_OWNER, ActiveShopRolePermission
 
 from . import services
 from .exporters import to_pdf, to_xlsx
-from .serializers import DashboardSerializer, ReportSerializer
+from .serializers import DashboardSerializer, DayBookSerializer, ReportSerializer
 
 _CONTENT_TYPES = {
     "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -58,6 +58,22 @@ class DashboardView(ShopScopedViewSetMixin, generics.GenericAPIView):
     def get(self, request, *args, **kwargs):
         on_date = _parse_date(request.query_params.get("date"))
         return Response(services.dashboard(self.active_shop, on_date=on_date))
+
+
+class DayBookView(ShopScopedViewSetMixin, generics.GenericAPIView):
+    """GET /reports/day — one day's full activity for the active shop. Owner only."""
+
+    permission_classes = [IsAuthenticated, ActiveShopRolePermission]
+    required_roles = {ROLE_OWNER}
+    serializer_class = DayBookSerializer
+
+    @extend_schema(
+        parameters=[OpenApiParameter("date", str, description="YYYY-MM-DD (default today)")],
+        responses={200: DayBookSerializer},
+    )
+    def get(self, request, *args, **kwargs):
+        on_date = _parse_date(request.query_params.get("date"))
+        return Response(services.day_book(self.active_shop, on_date=on_date))
 
 
 _FORMAT_PARAM = OpenApiParameter("export", str, enum=["pdf", "xlsx"])

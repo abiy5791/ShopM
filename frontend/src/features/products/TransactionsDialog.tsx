@@ -17,6 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatEthiopianDateTime } from "@/lib/ethiopian";
 import type { Product, TransactionType } from "@/types";
 
 import { useProductTransactions } from "./api";
@@ -32,6 +33,13 @@ const TYPE_VARIANT: Record<TransactionType, "default" | "secondary" | "accent" |
   expiry: "destructive",
 };
 
+const UUID_RE = /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g;
+
+/** Make ledger notes readable: collapse long reference UUIDs to a short "#abc12345". */
+function formatNote(note: string): string {
+  return note.replace(UUID_RE, (m) => `#${m.slice(0, 8)}`);
+}
+
 export function TransactionsDialog({
   product,
   onOpenChange,
@@ -44,7 +52,7 @@ export function TransactionsDialog({
 
   return (
     <Dialog open={Boolean(product)} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>Stock history</DialogTitle>
           <DialogDescription>
@@ -54,7 +62,7 @@ export function TransactionsDialog({
 
         <div className="max-h-[60vh] overflow-y-auto rounded-md border">
           {/* Desktop table */}
-          <div className="hidden sm:block">
+          <div className="hidden overflow-x-auto sm:block">
             <Table>
               <TableHeader>
                 <TableRow className="border-t-0">
@@ -81,7 +89,7 @@ export function TransactionsDialog({
                   rows.map((t) => (
                     <TableRow key={t.id}>
                       <TableCell className="whitespace-nowrap font-mono text-xs tabular-nums text-muted-foreground">
-                        {new Date(t.created_at).toLocaleString()}
+                        {formatEthiopianDateTime(t.created_at)}
                       </TableCell>
                       <TableCell>
                         <Badge variant={TYPE_VARIANT[t.type]}>{t.type}</Badge>
@@ -94,8 +102,18 @@ export function TransactionsDialog({
                       >
                         {t.quantity > 0 ? `+${t.quantity}` : t.quantity}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{t.user_email ?? "—"}</TableCell>
-                      <TableCell className="text-muted-foreground">{t.notes || "—"}</TableCell>
+                      <TableCell className="whitespace-nowrap text-muted-foreground">
+                        {t.user_email ?? "—"}
+                      </TableCell>
+                      <TableCell className="max-w-[15rem] text-muted-foreground">
+                        {t.notes ? (
+                          <span className="block truncate" title={formatNote(t.notes)}>
+                            {formatNote(t.notes)}
+                          </span>
+                        ) : (
+                          "—"
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
               </TableBody>
@@ -116,11 +134,13 @@ export function TransactionsDialog({
                   <div className="min-w-0">
                     <Badge variant={TYPE_VARIANT[t.type]}>{t.type}</Badge>
                     <p className="mt-1.5 font-mono text-xs tabular-nums text-muted-foreground">
-                      {new Date(t.created_at).toLocaleString()}
+                      {formatEthiopianDateTime(t.created_at)}
                     </p>
                     <p className="text-xs text-muted-foreground">{t.user_email ?? "—"}</p>
                     {t.notes && (
-                      <p className="mt-0.5 break-words text-xs text-muted-foreground">{t.notes}</p>
+                      <p className="mt-0.5 break-words text-xs text-muted-foreground">
+                        {formatNote(t.notes)}
+                      </p>
                     )}
                   </div>
                   <span

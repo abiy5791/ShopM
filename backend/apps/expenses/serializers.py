@@ -21,6 +21,7 @@ class ExpenseSerializer(serializers.ModelSerializer):
             "category",
             "category_name",
             "amount",
+            "recurrence",
             "date",
             "description",
             "receipt_image",

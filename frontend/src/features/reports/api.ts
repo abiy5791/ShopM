@@ -12,11 +12,11 @@ export interface ReportParams {
   end?: string;
 }
 
-export function useReport(key: ReportKey, params: ReportParams) {
+export function useReport(key: ReportKey, params: ReportParams, enabled = true) {
   const activeShopId = useAuthStore((s) => s.activeShopId);
   return useQuery({
     queryKey: ["report", activeShopId, key, params],
-    enabled: Boolean(activeShopId),
+    enabled: enabled && Boolean(activeShopId),
     queryFn: async () =>
       (
         await api.get<ReportData>(`/reports/${key}`, {

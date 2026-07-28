@@ -82,6 +82,9 @@ class Payment(BaseModel):
 
     class Method(models.TextChoices):
         CASH = "cash", "Cash"
+        TELEBIRR = "telebirr", "Telebirr"
+        CBE = "cbe", "CBE"
+        ABYSSINIA = "abyssinia", "Bank of Abyssinia"
         BANK = "bank", "Bank"
         MOBILE_MONEY = "mobile_money", "Mobile money"
 

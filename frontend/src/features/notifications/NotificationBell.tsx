@@ -7,6 +7,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { formatEthiopianDateTime } from "@/lib/ethiopian";
 import type { AppNotification, NotificationType } from "@/types";
 
 import { useMarkRead, useNotifications, useUnreadCount } from "./api";
@@ -87,7 +88,7 @@ function Row({ n, onRead }: { n: AppNotification; onRead: () => void }) {
       <div className="min-w-0 flex-1">
         <p className="text-sm">{n.title}</p>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          {new Date(n.created_at).toLocaleString()}
+          {formatEthiopianDateTime(n.created_at)}
         </p>
       </div>
       {!n.is_read && <Badge variant="accent" className="h-1.5 w-1.5 shrink-0 rounded-full p-0" />}

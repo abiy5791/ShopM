@@ -1,3 +1,4 @@
+import { formatEthiopianDateTime } from "@/lib/ethiopian";
 import { formatMoney } from "@/lib/money";
 import type { ReceiptData } from "@/types";
 
@@ -10,7 +11,7 @@ export function Receipt({ data }: { data: ReceiptData }) {
       <div className="text-center">
         <p className="text-sm font-semibold uppercase tracking-wide">{data.shop_name}</p>
         {data.shop_address && <p className="text-muted-foreground">{data.shop_address}</p>}
-        <p className="mt-1 text-muted-foreground">{new Date(data.created_at).toLocaleString()}</p>
+        <p className="mt-1 text-muted-foreground">{formatEthiopianDateTime(data.created_at)}</p>
         <p className="text-muted-foreground">Served by {data.cashier_name}</p>
         {data.offline && (
           <p className="mt-1 font-semibold text-destructive">OFFLINE — pending sync</p>

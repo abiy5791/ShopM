@@ -1,4 +1,4 @@
-import { Plus, Receipt, Trash2 } from "lucide-react";
+import { Pencil, Plus, Receipt, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useActiveShop } from "@/features/pos/api";
+import { formatEthiopian } from "@/lib/ethiopian";
 import { formatMoney } from "@/lib/money";
 import type { Expense } from "@/types";
 
@@ -29,7 +30,10 @@ export default function ExpensesPage() {
   const shop = useActiveShop();
   const currency = shop?.currency ?? "ETB";
   const [page, setPage] = useState(1);
-  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState<{ open: boolean; expense: Expense | null }>({
+    open: false,
+    expense: null,
+  });
   const [deleting, setDeleting] = useState<string | null>(null);
   const [detail, setDetail] = useState<Expense | null>(null);
   const [receipt, setReceipt] = useState<string | null>(null);
@@ -54,7 +58,7 @@ export default function ExpensesPage() {
         title="Expenses"
         description="Track shop running costs."
         actions={
-          <Button size="sm" onClick={() => setOpen(true)}>
+          <Button size="sm" onClick={() => setForm({ open: true, expense: null })}>
             <Plus className="h-4 w-4" /> New expense
           </Button>
         }
@@ -71,7 +75,7 @@ export default function ExpensesPage() {
                 <TableHead>Description</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead>Receipt</TableHead>
-                <TableHead className="w-10" />
+                <TableHead className="w-20 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -89,7 +93,7 @@ export default function ExpensesPage() {
                 rows.map((e) => (
                   <TableRow key={e.id}>
                     <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
-                      {e.date}
+                      {formatEthiopian(e.date)}
                     </TableCell>
                     <TableCell>{e.category_name ?? "—"}</TableCell>
                     <TableCell className="text-muted-foreground">{e.description || "—"}</TableCell>
@@ -110,15 +114,26 @@ export default function ExpensesPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground"
-                        aria-label="Delete expense"
-                        onClick={() => setDeleting(e.id)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      <div className="flex justify-end">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground"
+                          aria-label="Edit expense"
+                          onClick={() => setForm({ open: true, expense: e })}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground"
+                          aria-label="Delete expense"
+                          onClick={() => setDeleting(e.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -140,7 +155,7 @@ export default function ExpensesPage() {
                 <ListCard
                   onClick={() => setDetail(e)}
                   title={e.category_name ?? "Expense"}
-                  subtitle={e.date}
+                  subtitle={formatEthiopian(e.date)}
                   meta={e.description ? <span className="truncate">{e.description}</span> : undefined}
                   trailing={
                     <span className="font-mono text-sm font-semibold tabular-nums">
@@ -194,11 +209,21 @@ export default function ExpensesPage() {
         </div>
       )}
 
-      <ExpenseFormDialog open={open} onOpenChange={setOpen} currency={currency} />
+      <ExpenseFormDialog
+        open={form.open}
+        expense={form.expense}
+        onOpenChange={(o) => setForm((f) => ({ ...f, open: o }))}
+        currency={currency}
+      />
       <ExpenseDetailDialog
         expense={detail}
         currency={currency}
         onOpenChange={(o) => !o && setDetail(null)}
+        onEdit={() => {
+          const e = detail;
+          setDetail(null);
+          if (e) setForm({ open: true, expense: e });
+        }}
         onDelete={() => {
           const id = detail?.id ?? null;
           setDetail(null);
