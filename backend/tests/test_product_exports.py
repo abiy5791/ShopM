@@ -7,6 +7,8 @@ from openpyxl import Workbook, load_workbook
 
 from apps.catalog import excel, pdf
 from apps.catalog.models import Category, Product, Supplier
+from apps.inventory.models import InventoryTransaction
+from apps.inventory.services import ledger_stock, record_transaction
 
 pytestmark = pytest.mark.django_db
 
@@ -37,6 +39,7 @@ def _row(**kw):
         "unit": "pcs",
         "purchase_price": 90,
         "selling_price": 150,
+        "opening_stock": 0,
         "min_stock_alert": 5,
         "status": "active",
     }
@@ -90,6 +93,74 @@ def test_supplier_round_trips(make_user, make_shop):
     )
 
     assert dst.products.get(sku="A-1").supplier.name == "Acme"
+
+
+# --- opening stock: seeded through the ledger, never written directly ---
+def test_opening_stock_creates_a_ledger_row(make_user, make_shop):
+    owner = make_user("o@shopm.local")
+    shop = make_shop(owner)
+
+    result = excel.import_products(
+        _sheet([_row(opening_stock=12)]), shop=shop, currency="ETB", user=owner
+    )
+
+    product = shop.products.get()
+    assert result["stock_set"] == 1
+    assert product.stock_cached == 12
+    assert ledger_stock(product) == 12  # the ledger, not just the cache
+    txn = InventoryTransaction.objects.get(product=product)
+    assert (txn.quantity, txn.type, txn.notes, txn.user) == (
+        12,
+        "adjustment",
+        "Opening stock",
+        owner,
+    )
+
+
+def test_opening_stock_is_ignored_for_products_that_already_exist(make_user, make_shop):
+    """Re-importing a file must never silently inflate stock."""
+    shop = make_shop(make_user("o@shopm.local"))
+    sheet = _sheet([_row(opening_stock=12)])
+    excel.import_products(sheet, shop=shop, currency="ETB")
+
+    sheet.seek(0)
+    result = excel.import_products(sheet, shop=shop, currency="ETB")
+
+    assert (result["updated"], result["stock_set"]) == (1, 0)
+    assert shop.products.get().stock_cached == 12  # not 24
+    assert InventoryTransaction.objects.count() == 1
+
+
+def test_blank_opening_stock_posts_nothing(make_user, make_shop):
+    shop = make_shop(make_user("o@shopm.local"))
+
+    result = excel.import_products(_sheet([_row(opening_stock="")]), shop=shop, currency="ETB")
+
+    assert result["stock_set"] == 0
+    assert not InventoryTransaction.objects.exists()
+
+
+def test_negative_opening_stock_is_a_row_error(make_user, make_shop):
+    shop = make_shop(make_user("o@shopm.local"))
+
+    result = excel.import_products(_sheet([_row(opening_stock=-3)]), shop=shop, currency="ETB")
+
+    assert result["skipped"] == 1
+    assert "opening_stock cannot be negative" in result["errors"][0]["error"]
+    assert not shop.products.exists()  # the whole row rolled back
+
+
+def test_export_carries_stock_so_a_catalogue_copy_is_complete(make_user, make_shop):
+    src = make_shop(make_user("o@shopm.local"), name="Src")
+    product = Product.objects.create(shop=src, sku="A-1", name="Cola", selling_price=15000)
+    record_transaction(product=product, quantity=7, type="adjustment")
+    dst = make_shop(make_user("o2@shopm.local"), name="Dst")
+
+    excel.import_products(
+        io.BytesIO(excel.export_products(src.products.all())), shop=dst, currency="ETB"
+    )
+
+    assert dst.products.get(sku="A-1").stock_cached == 7
 
 
 # --- numeric-looking cells keep their identity ---

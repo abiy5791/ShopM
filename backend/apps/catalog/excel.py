@@ -23,6 +23,8 @@ from openpyxl.utils import get_column_letter
 from openpyxl.utils.exceptions import InvalidFileException
 
 from apps.common.money import exponent, to_major, to_minor
+from apps.inventory.models import InventoryTransaction
+from apps.inventory.services import record_transaction
 
 from .models import Category, Product, Supplier
 
@@ -35,6 +37,7 @@ COLUMNS = [
     "unit",
     "purchase_price",
     "selling_price",
+    "opening_stock",
     "min_stock_alert",
     "status",
 ]
@@ -50,6 +53,7 @@ COLUMN_WIDTHS = {
     "unit": 8,
     "purchase_price": 15,
     "selling_price": 14,
+    "opening_stock": 14,
     "min_stock_alert": 16,
     "status": 10,
 }
@@ -127,6 +131,10 @@ def export_products(queryset, *, currency: str = "ETB") -> bytes:
                 p.unit,
                 to_major(p.purchase_price, currency),
                 to_major(p.selling_price, currency),
+                # Current stock, so importing this file into another shop brings
+                # the catalogue over complete. Re-importing here changes nothing:
+                # opening stock only seeds products the import creates.
+                p.stock_cached,
                 p.min_stock_alert,
                 p.status,
             ],
@@ -149,6 +157,7 @@ def import_template(*, currency: str = "ETB") -> bytes:
             "pcs",
             to_major(9000, currency),
             to_major(15000, currency),
+            12,
             5,
             "active",
         ],
@@ -254,8 +263,14 @@ def _open_sheet(file_obj):
     return ws
 
 
-def import_products(file_obj, *, shop, currency: str | None = None) -> dict:
-    """Upsert products from an .xlsx file, keyed on SKU within the shop."""
+def import_products(file_obj, *, shop, currency: str | None = None, user=None) -> dict:
+    """Upsert products from an .xlsx file, keyed on SKU within the shop.
+
+    ``opening_stock`` seeds a product the import *creates*, posted to the ledger
+    exactly like the New product form's opening stock. It is ignored for
+    products that already exist — re-importing a file must never silently
+    inflate stock; correcting stock is a stock adjustment, not an import.
+    """
     currency = currency or _shop_currency(shop)
     ws = _open_sheet(file_obj)
 
@@ -274,7 +289,7 @@ def import_products(file_obj, *, shop, currency: str | None = None) -> dict:
 
     categories: dict[str, Category] = {}
     suppliers: dict[str, Supplier] = {}
-    created = updated = skipped = 0
+    created = updated = skipped = stock_set = 0
     errors: list[dict] = []
 
     def fail(line: int, message: str) -> None:
@@ -317,6 +332,8 @@ def import_products(file_obj, *, shop, currency: str | None = None) -> dict:
                         cell(row, "min_stock_alert"), field="min_stock_alert"
                     ),
                     "status": _status(cell(row, "status")),
+                    # Stock is never written directly — it is derived from the
+                    # ledger (plan §3.2), so it is not part of `defaults`.
                     # Resolved last so a rejected row never leaves a stray
                     # category or supplier behind.
                     "category": _related(
@@ -326,9 +343,19 @@ def import_products(file_obj, *, shop, currency: str | None = None) -> dict:
                         Supplier, suppliers, cell(row, "supplier"), shop=shop, field="supplier"
                     ),
                 }
-                _, was_created = Product.objects.update_or_create(
+                opening_stock = _count(cell(row, "opening_stock"), field="opening_stock")
+                product, was_created = Product.objects.update_or_create(
                     shop=shop, sku=sku, defaults=defaults
                 )
+                if was_created and opening_stock:
+                    record_transaction(
+                        product=product,
+                        quantity=opening_stock,
+                        type=InventoryTransaction.Type.ADJUSTMENT,
+                        user=user,
+                        notes="Opening stock",
+                    )
+                    stock_set += 1
         except RowError as exc:
             fail(line, str(exc))
             continue
@@ -341,4 +368,10 @@ def import_products(file_obj, *, shop, currency: str | None = None) -> dict:
         created += int(was_created)
         updated += int(not was_created)
 
-    return {"created": created, "updated": updated, "skipped": skipped, "errors": errors}
+    return {
+        "created": created,
+        "updated": updated,
+        "skipped": skipped,
+        "stock_set": stock_set,
+        "errors": errors,
+    }

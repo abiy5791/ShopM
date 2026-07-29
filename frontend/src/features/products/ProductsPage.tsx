@@ -122,15 +122,18 @@ export default function ProductsPage() {
     if (!file) return;
     try {
       const result = await importProducts.mutateAsync(file);
+      const stock = result.stock_set
+        ? `Opening stock recorded for ${result.stock_set} product${result.stock_set === 1 ? "" : "s"}.`
+        : undefined;
       if (result.skipped === 0) {
-        toast.success(summarise(result));
+        toast.success(summarise(result), { description: stock });
         return;
       }
       // Skipped rows are the whole point of the report — name the first one so
       // the user can find it in Excel instead of guessing.
       const [first] = result.errors;
       toast.warning(`${summarise(result)}, ${result.skipped} skipped`, {
-        description: first ? `Row ${first.row}: ${first.error}` : undefined,
+        description: first ? `Row ${first.row}: ${first.error}` : stock,
         duration: 8000,
       });
     } catch (error) {

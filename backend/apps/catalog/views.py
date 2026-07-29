@@ -232,7 +232,12 @@ class ProductViewSet(ShopScopedModelViewSet):
             return bad_request(f"That file is larger than {limit} MB.", "file_too_large")
 
         try:
-            result = excel.import_products(upload, shop=self.active_shop, currency=self._currency())
+            result = excel.import_products(
+                upload,
+                shop=self.active_shop,
+                currency=self._currency(),
+                user=request.user,
+            )
         except excel.SpreadsheetError as exc:
             return bad_request(str(exc), "invalid_spreadsheet")
 

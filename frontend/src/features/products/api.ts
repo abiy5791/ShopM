@@ -157,6 +157,8 @@ export interface ImportResult {
   updated: number;
   /** Rows rejected — may exceed `errors.length`, which the server caps. */
   skipped: number;
+  /** New products whose `opening_stock` was posted to the inventory ledger. */
+  stock_set: number;
   errors: ImportRowError[];
 }
 
