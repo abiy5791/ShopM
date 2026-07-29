@@ -44,6 +44,9 @@
     "zod": "3.23.8",
     "zustand": "5.0.1"
   },
+  "overrides": {
+    "react-remove-scroll": "^2.7.2"
+  },
   "devDependencies": {
     "@playwright/test": "1.61.1",
     "@testing-library/jest-dom": "6.6.3",

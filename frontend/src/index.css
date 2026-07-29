@@ -159,6 +159,28 @@
   }
 }
 
+/* Radix Select injects its own <style> hiding the dropdown's scrollbar, which
+   makes a long list (products, suppliers) look clipped with no way down. Undo
+   it — !important because that injected rule lands later in the document. */
+[data-radix-select-viewport] {
+  scrollbar-width: thin !important;
+  scrollbar-color: hsl(var(--muted-foreground) / 0.4) transparent;
+  -ms-overflow-style: auto !important;
+}
+[data-radix-select-viewport]::-webkit-scrollbar {
+  display: block !important;
+  width: 10px;
+}
+[data-radix-select-viewport]::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 9999px;
+  background-clip: content-box;
+  background-color: hsl(var(--muted-foreground) / 0.4);
+}
+[data-radix-select-viewport]::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 /* react-headroom in the app shell. In its fixed states (pinned/unpinned while
    scrolled) the bar is position:fixed against the viewport, so it must be
    offset by the 15rem sidebar on md+ and span the rest of the width. At the top
