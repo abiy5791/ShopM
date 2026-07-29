@@ -1,3 +1,4 @@
+import { isAxiosError } from "axios";
 import { Download, FileSpreadsheet } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -26,6 +27,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DayDetailDialog } from "@/features/day/DayDetailDialog";
 import { useActiveShop } from "@/features/pos/api";
+import { readBlobError } from "@/lib/download";
 import { formatEthiopian } from "@/lib/ethiopian";
 import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
@@ -43,6 +45,13 @@ const TABS: { key: ReportKey; label: string }[] = [
 ];
 
 const PERIODS = ["daily", "weekly", "monthly", "yearly"];
+
+// One row of KPI cards on a wide screen, whatever a report reports — a 5-column
+// grid holding 6 cards leaves an orphan on its own line.
+const SUMMARY_COLUMNS: Record<number, string> = {
+  5: "lg:grid-cols-5",
+  6: "lg:grid-cols-6",
+};
 
 function isoLocal(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -90,6 +99,7 @@ export default function ReportsPage() {
   const [range, setRange] = useState({ start: "", end: "" });
   const [dayDetail, setDayDetail] = useState<string | null>(null);
   const [rangeDetail, setRangeDetail] = useState<RangeTarget | null>(null);
+  const [downloading, setDownloading] = useState<"pdf" | "xlsx" | null>(null);
   const currency = useActiveShop()?.currency ?? "ETB";
 
   // With no From/To set, the Sales grouping drives the window (so the totals,
@@ -112,10 +122,15 @@ export default function ReportsPage() {
     : [];
 
   async function handleDownload(format: "pdf" | "xlsx") {
+    setDownloading(format);
     try {
       await downloadReport(tab, format, params);
-    } catch {
-      toast.error("Export failed.");
+    } catch (error) {
+      // The body is a Blob here, so the server's message needs reading back.
+      const detail = isAxiosError(error) ? await readBlobError(error.response?.data) : null;
+      toast.error(detail ?? "Export failed. Please try again.");
+    } finally {
+      setDownloading(null);
     }
   }
 
@@ -128,11 +143,22 @@ export default function ReportsPage() {
         description="Shop-scoped, date-ranged. Export to PDF or Excel."
         actions={
           <>
-            <Button variant="outline" size="sm" onClick={() => handleDownload("pdf")}>
-              <Download className="h-4 w-4" /> PDF
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={downloading !== null || !data}
+              onClick={() => void handleDownload("pdf")}
+            >
+              <Download className="h-4 w-4" /> {downloading === "pdf" ? "Preparing…" : "PDF"}
             </Button>
-            <Button variant="outline" size="sm" onClick={() => handleDownload("xlsx")}>
-              <FileSpreadsheet className="h-4 w-4" /> Excel
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={downloading !== null || !data}
+              onClick={() => void handleDownload("xlsx")}
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              {downloading === "xlsx" ? "Preparing…" : "Excel"}
             </Button>
           </>
         }
@@ -199,7 +225,7 @@ export default function ReportsPage() {
         <div
           className={cn(
             "mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3",
-            data.summary.length >= 5 ? "lg:grid-cols-5" : "lg:grid-cols-4",
+            SUMMARY_COLUMNS[data.summary.length] ?? "lg:grid-cols-4",
           )}
         >
           {data.summary.map((s) => (

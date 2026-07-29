@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth";
+import { downloadBlob, filenameFrom } from "@/lib/download";
 import type {
   AdjustmentType,
   Category,
@@ -141,6 +142,50 @@ export function useDeleteProduct() {
   const invalidate = useInvalidateProducts();
   return useMutation({
     mutationFn: async (id: string) => api.delete(`/products/${id}`),
+    onSuccess: invalidate,
+  });
+}
+
+/** One row the importer refused, with the sheet row number the user sees in Excel. */
+export interface ImportRowError {
+  row: number;
+  error: string;
+}
+
+export interface ImportResult {
+  created: number;
+  updated: number;
+  /** Rows rejected — may exceed `errors.length`, which the server caps. */
+  skipped: number;
+  errors: ImportRowError[];
+}
+
+async function downloadFile(path: string, fallbackName: string, params?: Record<string, string>) {
+  const res = await api.get(path, { params, responseType: "blob" });
+  downloadBlob(res.data as Blob, filenameFrom(res.headers["content-disposition"], fallbackName));
+}
+
+/**
+ * The shop's whole catalogue. `.xlsx` is the round-trip format `importProducts`
+ * reads back; `pdf` is a printable price list.
+ */
+export function exportProducts(format: "xlsx" | "pdf" = "xlsx") {
+  return downloadFile("/products/export", `products.${format}`, { export: format });
+}
+
+/** A blank sheet with the expected header, for shops with nothing to export yet. */
+export function downloadImportTemplate() {
+  return downloadFile("/products/import-template", "products-import-template.xlsx");
+}
+
+export function useImportProducts() {
+  const invalidate = useInvalidateProducts();
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      return (await api.post<ImportResult>("/products/import", form)).data;
+    },
     onSuccess: invalidate,
   });
 }

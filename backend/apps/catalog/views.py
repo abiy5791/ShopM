@@ -1,7 +1,8 @@
 from django.db import transaction
 from django.db.models import F
 from django.http import HttpResponse
-from drf_spectacular.utils import extend_schema
+from django.utils import timezone
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser
@@ -12,7 +13,7 @@ from apps.common.permissions import ROLE_OWNER
 from apps.common.utils import get_client_ip
 from apps.common.viewsets import ShopScopedModelViewSet
 
-from . import excel
+from . import excel, pdf
 from .models import Category, Product, Supplier
 from .serializers import CategorySerializer, ProductSerializer, SupplierSerializer
 
@@ -22,6 +23,25 @@ OWNER_WRITE = {
     "partial_update": [ROLE_OWNER],
     "destroy": [ROLE_OWNER],
 }
+
+XLSX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+PDF_CONTENT_TYPE = "application/pdf"
+XLSX_EXTENSIONS = (".xlsx", ".xlsm")
+#: An .xlsx catalogue far smaller than this holds tens of thousands of rows.
+MAX_IMPORT_BYTES = 5 * 1024 * 1024
+
+
+def file_response(content: bytes, filename: str, content_type: str) -> HttpResponse:
+    response = HttpResponse(content, content_type=content_type)
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+def bad_request(detail: str, code: str) -> Response:
+    return Response(
+        {"detail": detail, "code": code, "fields": {}},
+        status=status.HTTP_400_BAD_REQUEST,
+    )
 
 
 class CategoryViewSet(ShopScopedModelViewSet):
@@ -47,7 +67,11 @@ class ProductViewSet(ShopScopedModelViewSet):
     filterset_fields = ["status", "category"]
     ordering_fields = ["name", "selling_price", "stock_cached", "created_at"]
     # Owner manages catalog; cashiers have read-only access (plan §8).
-    action_roles = {**OWNER_WRITE, "import_products": [ROLE_OWNER]}
+    action_roles = {
+        **OWNER_WRITE,
+        "import_products": [ROLE_OWNER],
+        "import_template": [ROLE_OWNER],
+    }
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -66,6 +90,10 @@ class ProductViewSet(ShopScopedModelViewSet):
             ip=get_client_ip(self.request),
             metadata={"sku": product.sku, "name": product.name},
         )
+
+    def _currency(self) -> str:
+        settings = getattr(self.active_shop, "settings", None)
+        return settings.currency if settings else "ETB"
 
     def _parse_initial_stock(self) -> int:
         try:
@@ -147,20 +175,35 @@ class ProductViewSet(ShopScopedModelViewSet):
         )
 
     @extend_schema(
-        description="Export all products in the active shop as an .xlsx file.",
-        responses={
-            (200, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"): bytes
-        },
+        parameters=[OpenApiParameter("export", str, enum=["xlsx", "pdf"])],
+        description=(
+            "Export all products in the active shop. .xlsx is the round-trip "
+            "format the importer reads; .pdf is a printable catalogue."
+        ),
+        responses={(200, XLSX_CONTENT_TYPE): bytes, (200, PDF_CONTENT_TYPE): bytes},
     )
     @action(detail=False, methods=["get"])
     def export(self, request):
-        content = excel.export_products(self.get_queryset())
-        response = HttpResponse(
-            content,
-            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        )
-        response["Content-Disposition"] = 'attachment; filename="products.xlsx"'
-        return response
+        currency = self._currency()
+        stamp = f"{timezone.localdate():%Y-%m-%d}"
+        # ``export`` rather than ``format``: DRF reserves the latter for content
+        # negotiation (same convention as /reports).
+        if request.query_params.get("export") == "pdf":
+            content = pdf.export_products_pdf(
+                self.get_queryset(), shop_name=self.active_shop.name, currency=currency
+            )
+            return file_response(content, f"products-{stamp}.pdf", PDF_CONTENT_TYPE)
+        content = excel.export_products(self.get_queryset(), currency=currency)
+        return file_response(content, f"products-{stamp}.xlsx", XLSX_CONTENT_TYPE)
+
+    @extend_schema(
+        description="A blank .xlsx with the header row the importer expects. Owner only.",
+        responses={(200, XLSX_CONTENT_TYPE): bytes},
+    )
+    @action(detail=False, methods=["get"], url_path="import-template")
+    def import_template(self, request):
+        content = excel.import_template(currency=self._currency())
+        return file_response(content, "products-import-template.xlsx", XLSX_CONTENT_TYPE)
 
     @extend_schema(
         request={
@@ -181,17 +224,25 @@ class ProductViewSet(ShopScopedModelViewSet):
     def import_products(self, request):
         upload = request.FILES.get("file")
         if upload is None:
-            return Response(
-                {"detail": "No file provided.", "code": "file_required", "fields": {}},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        result = excel.import_products(upload, shop=self.active_shop)
+            return bad_request("No file provided.", "file_required")
+        if not str(upload.name or "").lower().endswith(XLSX_EXTENSIONS):
+            return bad_request("Only .xlsx files can be imported.", "invalid_file_type")
+        if upload.size and upload.size > MAX_IMPORT_BYTES:
+            limit = MAX_IMPORT_BYTES // (1024 * 1024)
+            return bad_request(f"That file is larger than {limit} MB.", "file_too_large")
+
+        try:
+            result = excel.import_products(upload, shop=self.active_shop, currency=self._currency())
+        except excel.SpreadsheetError as exc:
+            return bad_request(str(exc), "invalid_spreadsheet")
+
         log_activity(
             user=request.user,
             action="product.import",
             entity_type="product",
             shop=self.active_shop,
             ip=get_client_ip(request),
-            metadata=result,
+            # Counts only — the per-row errors can be long and belong to the response.
+            metadata={k: v for k, v in result.items() if k != "errors"},
         )
         return Response(result)

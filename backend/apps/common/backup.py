@@ -1,12 +1,13 @@
 """Database backup/restore (plan §11 Phase 7, §14).
 
-Supports the two configured engines: sqlite (dev — a file copy) and PostgreSQL
-(prod — pg_dump custom format). See the runbook in README for the full restore
-drill; ``restore_sqlite`` here covers the dev path used by tests.
+Supports the two configured engines: sqlite (dev — the online backup API) and
+PostgreSQL (prod — pg_dump custom format). Both take a consistent snapshot of a
+running database. See the runbook in README for the full restore drill;
+``restore_sqlite`` here covers the dev path used by tests.
 """
 
 import os
-import shutil
+import sqlite3
 import subprocess
 
 from django.conf import settings
@@ -26,9 +27,12 @@ def create_backup(dest_dir: str | None = None) -> str:
     engine = db["ENGINE"]
 
     if "sqlite" in engine:
-        source = str(db["NAME"])
         path = os.path.join(dest, f"backup-{stamp}.sqlite3")
-        shutil.copyfile(source, path)
+        # sqlite's online backup API, not a file copy: copying a live database
+        # can capture a write mid-flight (or miss the WAL) and yield a backup
+        # that only fails when you finally need it.
+        with sqlite3.connect(str(db["NAME"])) as source, sqlite3.connect(path) as target:
+            source.backup(target)
         return path
 
     if "postgresql" in engine:
@@ -62,4 +66,7 @@ def restore_sqlite(backup_path: str) -> None:
     db = _db()
     if "sqlite" not in db["ENGINE"]:
         raise RuntimeError("restore_sqlite only supports the sqlite engine.")
-    shutil.copyfile(backup_path, str(db["NAME"]))
+    # Same reasoning as create_backup, plus one more: overwriting the file alone
+    # would leave a stale -wal/-shm beside it, which sqlite then replays.
+    with sqlite3.connect(backup_path) as source, sqlite3.connect(str(db["NAME"])) as target:
+        source.backup(target)

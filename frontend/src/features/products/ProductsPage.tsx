@@ -1,6 +1,8 @@
-import { useQueryClient } from "@tanstack/react-query";
+import { isAxiosError } from "axios";
 import {
-  Download,
+  Download as DownloadIcon,
+  FileSpreadsheet,
+  FileText,
   MoreHorizontal,
   Package,
   Plus,
@@ -34,16 +36,35 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { api } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth";
+import { readBlobError } from "@/lib/download";
 import { formatMoney } from "@/lib/money";
 import type { Product } from "@/types";
 
-import { useActiveCurrency, useDeleteProduct, useProducts } from "./api";
+import {
+  downloadImportTemplate,
+  exportProducts,
+  type ImportResult,
+  useActiveCurrency,
+  useDeleteProduct,
+  useImportProducts,
+  useProducts,
+} from "./api";
 import { ProductDetailDialog } from "./ProductDetailDialog";
 import { ProductFormDialog } from "./ProductFormDialog";
 import { StockAdjustDialog } from "./StockAdjustDialog";
 import { TransactionsDialog } from "./TransactionsDialog";
+
+/** The three files this page can hand back. */
+type Download = "xlsx" | "pdf" | "template";
+
+/** "2 added, 1 updated" — only the parts that actually happened. */
+function summarise({ created, updated }: ImportResult): string {
+  const parts: string[] = [];
+  if (created) parts.push(`${created} added`);
+  if (updated) parts.push(`${updated} updated`);
+  return parts.join(", ") || "No products imported";
+}
 
 export default function ProductsPage() {
   const role = useAuthStore(
@@ -51,9 +72,10 @@ export default function ProductsPage() {
   );
   const isOwner = role === "owner";
   const currency = useActiveCurrency();
-  const queryClient = useQueryClient();
   const deleteProduct = useDeleteProduct();
+  const importProducts = useImportProducts();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [downloading, setDownloading] = useState<Download | null>(null);
 
   const [search, setSearch] = useState("");
   const [lowStock, setLowStock] = useState(false);
@@ -81,17 +103,16 @@ export default function ProductsPage() {
     setFormOpen(true);
   }
 
-  async function handleExport() {
+  async function handleDownload(what: Download) {
+    setDownloading(what);
     try {
-      const res = await api.get("/products/export", { responseType: "blob" });
-      const url = URL.createObjectURL(res.data as Blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "products.xlsx";
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      toast.error("Export failed.");
+      await (what === "template" ? downloadImportTemplate() : exportProducts(what));
+    } catch (error) {
+      // Blob responses hide the server's message until it's read back as text.
+      const detail = isAxiosError(error) ? await readBlobError(error.response?.data) : null;
+      toast.error(detail ?? "Download failed. Please try again.");
+    } finally {
+      setDownloading(null);
     }
   }
 
@@ -99,17 +120,22 @@ export default function ProductsPage() {
     const file = event.target.files?.[0];
     event.target.value = ""; // allow re-selecting the same file
     if (!file) return;
-    const form = new FormData();
-    form.append("file", file);
     try {
-      const res = await api.post<{ created: number; updated: number; errors: unknown[] }>(
-        "/products/import",
-        form,
-      );
-      toast.success(`Imported: ${res.data.created} created, ${res.data.updated} updated`);
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-    } catch {
-      toast.error("Import failed. Check the file format.");
+      const result = await importProducts.mutateAsync(file);
+      if (result.skipped === 0) {
+        toast.success(summarise(result));
+        return;
+      }
+      // Skipped rows are the whole point of the report — name the first one so
+      // the user can find it in Excel instead of guessing.
+      const [first] = result.errors;
+      toast.warning(`${summarise(result)}, ${result.skipped} skipped`, {
+        description: first ? `Row ${first.row}: ${first.error}` : undefined,
+        duration: 8000,
+      });
+    } catch (error) {
+      const detail = isAxiosError<{ detail?: string }>(error) ? error.response?.data?.detail : null;
+      toast.error(detail ?? "Import failed. Check the file format.");
     }
   }
 
@@ -135,16 +161,49 @@ export default function ProductsPage() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".xlsx"
+                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 className="hidden"
                 onChange={handleImport}
               />
-              <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-                <Upload className="h-4 w-4" /> Import
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleExport}>
-                <Download className="h-4 w-4" /> Export
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" disabled={importProducts.isPending}>
+                    <Upload className="h-4 w-4" />
+                    {importProducts.isPending ? "Importing…" : "Import"}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onSelect={() => fileInputRef.current?.click()}>
+                    <Upload className="h-4 w-4" /> Choose .xlsx file…
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    disabled={downloading === "template"}
+                    onSelect={() => void handleDownload("template")}
+                  >
+                    <FileSpreadsheet className="h-4 w-4" /> Download template
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={downloading === "xlsx" || downloading === "pdf"}
+                  >
+                    <DownloadIcon className="h-4 w-4" />
+                    {downloading === "xlsx" || downloading === "pdf" ? "Exporting…" : "Export"}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onSelect={() => void handleDownload("xlsx")}>
+                    <FileSpreadsheet className="h-4 w-4" /> Excel (.xlsx)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => void handleDownload("pdf")}>
+                    <FileText className="h-4 w-4" /> PDF catalogue
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button size="sm" onClick={openCreate}>
                 <Plus className="h-4 w-4" /> New product
               </Button>

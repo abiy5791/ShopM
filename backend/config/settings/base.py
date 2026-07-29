@@ -196,6 +196,9 @@ CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=["http://localho
 from corsheaders.defaults import default_headers  # noqa: E402
 
 CORS_ALLOW_HEADERS = (*default_headers, "x-shop-id")
+# Downloads (exports, receipts) name themselves via Content-Disposition; without
+# this the browser hides the header from cross-origin XHR and the SPA can't read it.
+CORS_EXPOSE_HEADERS = ["Content-Disposition"]
 
 # ---------------------------------------------------------------------------
 # Celery

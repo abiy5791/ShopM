@@ -418,7 +418,11 @@ def sales_report(shop, *, period="daily", start=None, end=None) -> dict:
         }
         for b in ordered
     ]
-    summary_total = qs.aggregate(s=Sum("total"))["s"] or 0
+    totals = qs.aggregate(total=Sum("total"), tax=Sum("tax"))
+    summary_total = totals["total"] or 0
+    # Tax charged to customers over the range. It is collected on the shop's
+    # behalf and remitted, so it is part of Total sales but never of profit.
+    tax_collected = totals["tax"] or 0
     summary_count = qs.count()
     items_sold = SaleItem.objects.filter(sale__in=qs).aggregate(q=Sum("quantity"))["q"] or 0
     avg_sale = round(summary_total / summary_count) if summary_count else 0
@@ -452,6 +456,7 @@ def sales_report(shop, *, period="daily", start=None, end=None) -> dict:
             {"label": "Avg sale", "value": avg_sale, "money": True},
             {"label": "Items sold", "value": items_sold, "money": False},
             {"label": f"Avg / {unit}", "value": avg_per_period, "money": True},
+            {"label": "Tax collected", "value": tax_collected, "money": True},
         ],
         "columns": ["Period", "Transactions", "Total"],
         "rows": rows,

@@ -104,6 +104,43 @@ def test_profit_report_excludes_tax_from_revenue_and_profit(make_user, make_shop
     assert margin["value"] == 20
 
 
+def test_sales_report_reports_tax_collected(make_user, make_shop, auth):
+    """The sales KPIs show the tax charged to customers over the range."""
+    import uuid
+
+    from apps.inventory.services import record_transaction
+
+    owner = make_user("owner-stax@shopm.local")
+    shop = make_shop(owner, name="S")
+    product = Product.objects.create(shop=shop, sku="SKU-T", name="Tee", selling_price=25000)
+    record_transaction(product=product, quantity=10, type="adjustment")
+    client = auth(owner, shop=shop)
+    for _ in range(2):
+        resp = client.post(
+            "/api/v1/sales",
+            {
+                "client_uuid": str(uuid.uuid4()),
+                "items": [{"product": str(product.id), "quantity": 1}],
+                "tax": 3750,
+                "payments": [{"method": "cash", "amount": 28750}],
+            },
+            format="json",
+        )
+        assert resp.status_code == 201, resp.content
+
+    data = client.get("/api/v1/reports/sales").data
+    tax = next(s for s in data["summary"] if s["label"] == "Tax collected")
+
+    assert tax["money"] is True
+    assert tax["value"] == 7500  # 2 × 3750
+    # Total sales still includes it — tax is collected from the customer.
+    total = next(s for s in data["summary"] if s["label"] == "Total sales")
+    assert total["value"] == 57500
+    # And it agrees with the profit report over the same range.
+    profit = client.get("/api/v1/reports/profit").data
+    assert dict(profit["rows"])["Tax collected (remitted, not income)"] == 7500
+
+
 def test_cashflow_series_runs_a_balance(shop_with_sale):
     shop, client = shop_with_sale
     data = client.get("/api/v1/reports/cashflow").data

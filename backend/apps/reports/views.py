@@ -11,7 +11,7 @@ from apps.common.mixins import ShopScopedViewSetMixin
 from apps.common.permissions import ROLE_OWNER, ActiveShopRolePermission
 
 from . import services
-from .exporters import to_pdf, to_xlsx
+from .exporters import filename_for, to_pdf, to_xlsx
 from .serializers import DashboardSerializer, DayBookSerializer, ReportSerializer
 
 _CONTENT_TYPES = {
@@ -27,21 +27,6 @@ def _parse_date(value):
         return date.fromisoformat(value)
     except ValueError:
         return None
-
-
-def _respond(report: dict, request):
-    """Return the report as JSON, or as a downloadable PDF/XLSX via ?export=.
-
-    Note: the param is ``export`` (not ``format``) because DRF reserves ``format``
-    for content negotiation.
-    """
-    fmt = request.query_params.get("export", "json")
-    if fmt in ("xlsx", "pdf"):
-        content = to_xlsx(report) if fmt == "xlsx" else to_pdf(report)
-        response = HttpResponse(content, content_type=_CONTENT_TYPES[fmt])
-        response["Content-Disposition"] = f'attachment; filename="{report["key"]}.{fmt}"'
-        return response
-    return Response(report)
 
 
 class DashboardView(ShopScopedViewSetMixin, generics.GenericAPIView):
@@ -91,6 +76,25 @@ class ReportsViewSet(ShopScopedViewSetMixin, viewsets.GenericViewSet):
     required_roles = {ROLE_OWNER}
     serializer_class = ReportSerializer
 
+    def _respond(self, report: dict):
+        """Return the report as JSON, or as a downloadable PDF/XLSX via ?export=.
+
+        Note: the param is ``export`` (not ``format``) because DRF reserves
+        ``format`` for content negotiation.
+        """
+        fmt = self.request.query_params.get("export", "json")
+        if fmt not in _CONTENT_TYPES:
+            return Response(report)
+        shop_name = self.active_shop.name
+        content = (
+            to_xlsx(report, shop_name=shop_name)
+            if fmt == "xlsx"
+            else to_pdf(report, shop_name=shop_name)
+        )
+        response = HttpResponse(content, content_type=_CONTENT_TYPES[fmt])
+        response["Content-Disposition"] = f'attachment; filename="{filename_for(report, fmt)}"'
+        return response
+
     @extend_schema(
         parameters=[
             OpenApiParameter("period", str, enum=["daily", "weekly", "monthly", "yearly"]),
@@ -106,12 +110,12 @@ class ReportsViewSet(ShopScopedViewSetMixin, viewsets.GenericViewSet):
             start=_parse_date(request.query_params.get("start")),
             end=_parse_date(request.query_params.get("end")),
         )
-        return _respond(report, request)
+        return self._respond(report)
 
     @extend_schema(parameters=[_FORMAT_PARAM])
     @action(detail=False)
     def inventory(self, request):
-        return _respond(services.inventory_report(self.active_shop), request)
+        return self._respond(services.inventory_report(self.active_shop))
 
     @extend_schema(parameters=_RANGE_PARAMS)
     @action(detail=False)
@@ -121,7 +125,7 @@ class ReportsViewSet(ShopScopedViewSetMixin, viewsets.GenericViewSet):
             start=_parse_date(request.query_params.get("start")),
             end=_parse_date(request.query_params.get("end")),
         )
-        return _respond(report, request)
+        return self._respond(report)
 
     @extend_schema(parameters=_RANGE_PARAMS)
     @action(detail=False)
@@ -131,4 +135,4 @@ class ReportsViewSet(ShopScopedViewSetMixin, viewsets.GenericViewSet):
             start=_parse_date(request.query_params.get("start")),
             end=_parse_date(request.query_params.get("end")),
         )
-        return _respond(report, request)
+        return self._respond(report)

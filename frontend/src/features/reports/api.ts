@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth";
+import { downloadBlob, filenameFrom } from "@/lib/download";
 import type { ReportData } from "@/types";
 
 export type ReportKey = "sales" | "inventory" | "profit" | "cashflow";
@@ -41,10 +42,8 @@ export async function downloadReport(key: ReportKey, format: "pdf" | "xlsx", par
     },
     responseType: "blob",
   });
-  const url = URL.createObjectURL(res.data as Blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${key}.${format}`;
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadBlob(
+    res.data as Blob,
+    filenameFrom(res.headers["content-disposition"], `${key}.${format}`),
+  );
 }

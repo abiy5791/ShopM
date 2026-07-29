@@ -3,6 +3,7 @@ import {
   ChevronRight,
   Coffee,
   Coins,
+  Loader2,
   Printer,
   Receipt,
   RefreshCw,
@@ -23,6 +24,8 @@ import { Card } from "@/components/ui/card";
 import { EthiopianDatePicker } from "@/components/ethiopian-date-picker";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useActiveShop } from "@/features/pos/api";
+import { useSale } from "@/features/sales/api";
+import { SaleDetailDialog } from "@/features/sales/SaleDetailDialog";
 import { formatEthiopian } from "@/lib/ethiopian";
 import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
@@ -106,6 +109,11 @@ export default function MyDayPage() {
   const today = todayIso();
   const [date, setDate] = useState(today);
   const { data, isLoading, isError, refetch } = useDayBook(date, true);
+
+  // Drill into one sale — the same dialog the Sales page and the Reports
+  // day drill-down open, so a sale looks identical wherever it's reached.
+  const [saleId, setSaleId] = useState<string | null>(null);
+  const sale = useSale(saleId);
 
   const isToday = date === today;
   const s = data?.summary;
@@ -235,325 +243,359 @@ export default function MyDayPage() {
 
           {/* Headline tiles */}
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Kpi
-          label="Sales"
-          icon={Receipt}
-          value={s ? formatMoney(s.sales_total, currency) : undefined}
-          sub={s ? `${s.sales_count} sale${s.sales_count === 1 ? "" : "s"} · ${s.items_sold} items` : ""}
-          loading={isLoading}
-        />
-        <Kpi
-          label="Gross profit"
-          icon={TrendingUp}
-          value={s ? formatMoney(s.gross_profit, currency) : undefined}
-          sub="Net sales − cost of goods"
-          loading={isLoading}
-        />
-        <Kpi
-          label="Net profit"
-          icon={Coins}
-          value={s ? formatMoney(s.net_profit, currency) : undefined}
-          sub={
-            s
-              ? s.monthly_prorated > 0
-                ? `After ${formatMoney(s.expenses_total, currency)} expenses (today's share)`
-                : `After ${formatMoney(s.expenses_total, currency)} expenses`
-              : ""
-          }
-          loading={isLoading}
-          negative={Boolean(s && s.net_profit < 0)}
-        />
-        <Kpi
-          label="Cash taken"
-          icon={Wallet}
-          value={s ? formatMoney(s.cash_received, currency) : undefined}
-          sub="Cash from today's sales"
-          loading={isLoading}
-        />
-      </div>
+            <Kpi
+              label="Sales"
+              icon={Receipt}
+              value={s ? formatMoney(s.sales_total, currency) : undefined}
+              sub={
+                s
+                  ? `${s.sales_count} sale${s.sales_count === 1 ? "" : "s"} · ${s.items_sold} items`
+                  : ""
+              }
+              loading={isLoading}
+            />
+            <Kpi
+              label="Gross profit"
+              icon={TrendingUp}
+              value={s ? formatMoney(s.gross_profit, currency) : undefined}
+              sub="Net sales − cost of goods"
+              loading={isLoading}
+            />
+            <Kpi
+              label="Net profit"
+              icon={Coins}
+              value={s ? formatMoney(s.net_profit, currency) : undefined}
+              sub={
+                s
+                  ? s.monthly_prorated > 0
+                    ? `After ${formatMoney(s.expenses_total, currency)} expenses (today's share)`
+                    : `After ${formatMoney(s.expenses_total, currency)} expenses`
+                  : ""
+              }
+              loading={isLoading}
+              negative={Boolean(s && s.net_profit < 0)}
+            />
+            <Kpi
+              label="Cash taken"
+              icon={Wallet}
+              value={s ? formatMoney(s.cash_received, currency) : undefined}
+              sub="Cash from today's sales"
+              loading={isLoading}
+            />
+          </div>
 
-      {/* Sales breakdown (how the customer's money splits: net + tax) alongside
+          {/* Sales breakdown (how the customer's money splits: net + tax) alongside
           a profit breakdown (how that money becomes profit) — a mini daily P&L. */}
-      {s && s.sales_count > 0 && (
-        <div
-          className={cn(
-            "mt-4 grid gap-4",
-            (s.tax_total > 0 || s.discount_total > 0) && "lg:grid-cols-2",
-          )}
-        >
-          {(s.tax_total > 0 || s.discount_total > 0) && (
-            <Card className="p-5">
-              <span className="font-mono text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
-                Sales breakdown
-              </span>
-              <dl className="mt-3 space-y-2 text-sm">
-                <BreakdownRow label="Net sales" value={formatMoney(s.net_sales, currency)} />
-                {s.discount_total > 0 && (
+          {s && s.sales_count > 0 && (
+            <div
+              className={cn(
+                "mt-4 grid gap-4",
+                (s.tax_total > 0 || s.discount_total > 0) && "lg:grid-cols-2",
+              )}
+            >
+              {(s.tax_total > 0 || s.discount_total > 0) && (
+                <Card className="p-5">
+                  <span className="font-mono text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
+                    Sales breakdown
+                  </span>
+                  <dl className="mt-3 space-y-2 text-sm">
+                    <BreakdownRow label="Net sales" value={formatMoney(s.net_sales, currency)} />
+                    {s.discount_total > 0 && (
+                      <BreakdownRow
+                        label="Discounts"
+                        value={`−${formatMoney(s.discount_total, currency)}`}
+                      />
+                    )}
+                    <BreakdownRow
+                      label="Tax collected"
+                      hint="held for tax authority — not profit"
+                      value={formatMoney(s.tax_total, currency)}
+                    />
+                    <div className="!mt-3 flex items-baseline justify-between border-t pt-2.5">
+                      <dt className="font-medium">Total collected</dt>
+                      <dd className="font-mono text-base font-semibold tabular-nums">
+                        {formatMoney(s.sales_total, currency)}
+                      </dd>
+                    </div>
+                  </dl>
+                </Card>
+              )}
+
+              {/* Profit breakdown — a mini P&L: net sales → gross → net profit. */}
+              <Card className="p-5">
+                <span className="font-mono text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
+                  Profit breakdown
+                </span>
+                <dl className="mt-3 space-y-2 text-sm">
+                  <BreakdownRow label="Net sales" value={formatMoney(s.net_sales, currency)} />
                   <BreakdownRow
-                    label="Discounts"
-                    value={`−${formatMoney(s.discount_total, currency)}`}
+                    label="Cost of goods"
+                    value={`−${formatMoney(s.net_sales - s.gross_profit, currency)}`}
                   />
-                )}
-                <BreakdownRow
-                  label="Tax collected"
-                  hint="held for tax authority — not profit"
-                  value={formatMoney(s.tax_total, currency)}
+                  <div className="!mt-2.5 flex items-baseline justify-between border-t pt-2.5">
+                    <dt className="font-medium">Gross profit</dt>
+                    <dd className="font-mono font-semibold tabular-nums">
+                      {formatMoney(s.gross_profit, currency)}
+                    </dd>
+                  </div>
+                  <BreakdownRow
+                    label="Expenses"
+                    hint="today's share"
+                    value={`−${formatMoney(s.expenses_total, currency)}`}
+                  />
+                  <div className="!mt-2.5 flex items-baseline justify-between border-t pt-2.5">
+                    <dt className="font-medium">Net profit</dt>
+                    <dd
+                      className={cn(
+                        "font-mono text-base font-semibold tabular-nums",
+                        s.net_profit < 0 && "text-destructive",
+                      )}
+                    >
+                      {formatMoney(s.net_profit, currency)}
+                    </dd>
+                  </div>
+                </dl>
+              </Card>
+            </div>
+          )}
+
+          {/* Insights — quick reads on how the day traded */}
+          {insights && s && (
+            <Card className="mt-4 p-4">
+              <span className="font-mono text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
+                Day insights
+              </span>
+              <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-4">
+                <MiniStat label="Avg / sale" value={formatMoney(insights.avgSale, currency)} />
+                <MiniStat
+                  label="Biggest sale"
+                  value={formatMoney(insights.biggestSale, currency)}
                 />
-                <div className="!mt-3 flex items-baseline justify-between border-t pt-2.5">
-                  <dt className="font-medium">Total collected</dt>
-                  <dd className="font-mono text-base font-semibold tabular-nums">
-                    {formatMoney(s.sales_total, currency)}
-                  </dd>
-                </div>
-              </dl>
+                <MiniStat
+                  label="Busiest hour"
+                  value={insights.busiest >= 0 ? hourRange(insights.busiest) : "—"}
+                  hint={insights.busiest >= 0 ? `${insights.busiestCount} sales` : undefined}
+                />
+                <MiniStat label="Gross margin" value={`${insights.margin}%`} hint="on net sales" />
+              </div>
             </Card>
           )}
 
-          {/* Profit breakdown — a mini P&L: net sales → gross → net profit. */}
-          <Card className="p-5">
-            <span className="font-mono text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
-              Profit breakdown
-            </span>
-            <dl className="mt-3 space-y-2 text-sm">
-              <BreakdownRow label="Net sales" value={formatMoney(s.net_sales, currency)} />
-              <BreakdownRow
-                label="Cost of goods"
-                value={`−${formatMoney(s.net_sales - s.gross_profit, currency)}`}
-              />
-              <div className="!mt-2.5 flex items-baseline justify-between border-t pt-2.5">
-                <dt className="font-medium">Gross profit</dt>
-                <dd className="font-mono font-semibold tabular-nums">
-                  {formatMoney(s.gross_profit, currency)}
-                </dd>
-              </div>
-              <BreakdownRow
-                label="Expenses"
-                hint="today's share"
-                value={`−${formatMoney(s.expenses_total, currency)}`}
-              />
-              <div className="!mt-2.5 flex items-baseline justify-between border-t pt-2.5">
-                <dt className="font-medium">Net profit</dt>
-                <dd
-                  className={cn(
-                    "font-mono text-base font-semibold tabular-nums",
-                    s.net_profit < 0 && "text-destructive",
-                  )}
-                >
-                  {formatMoney(s.net_profit, currency)}
-                </dd>
-              </div>
-            </dl>
-          </Card>
-        </div>
-      )}
-
-      {/* Insights — quick reads on how the day traded */}
-      {insights && s && (
-        <Card className="mt-4 p-4">
-          <span className="font-mono text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
-            Day insights
-          </span>
-          <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <MiniStat label="Avg / sale" value={formatMoney(insights.avgSale, currency)} />
-            <MiniStat label="Biggest sale" value={formatMoney(insights.biggestSale, currency)} />
-            <MiniStat
-              label="Busiest hour"
-              value={insights.busiest >= 0 ? hourRange(insights.busiest) : "—"}
-              hint={insights.busiest >= 0 ? `${insights.busiestCount} sales` : undefined}
-            />
-            <MiniStat label="Gross margin" value={`${insights.margin}%`} hint="on net sales" />
-          </div>
-        </Card>
-      )}
-
-      {/* Payments donut + top products */}
-      {data && (data.by_method.length > 0 || data.top_products.length > 0) && (
-        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <ChartCard title="Payments received">
-            <DonutChart
-              data={data.by_method.map((m) => ({
-                name: METHOD_LABELS[m.method] ?? m.method,
-                value: m.total,
-                color: METHOD_COLORS[m.method],
-              }))}
-              currency={currency}
-              totalLabel="Total received"
-              maxSlices={6}
-            />
-            {s && s.settlements_received > 0 && (
-              <div className="mt-2 flex items-baseline justify-between gap-2 border-t pt-2 text-sm">
-                <span className="text-muted-foreground">
-                  Credit settlements
-                  <span className="ml-1 text-xs text-muted-foreground/70">(older debts paid)</span>
-                </span>
-                <span className="font-mono font-medium tabular-nums">
-                  +{formatMoney(s.settlements_received, currency)}
-                </span>
-              </div>
-            )}
-          </ChartCard>
-
-          <Section title="Top products" icon={Trophy} count={data.top_products.length}>
-            {data.top_products.length > 0 ? (
-              <ol className="space-y-2.5">
-                {data.top_products.map((p, i) => (
-                  <li key={i} className="flex items-center gap-3">
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted font-mono text-xs font-semibold tabular-nums text-muted-foreground">
-                      {i + 1}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-sm">{p.name}</span>
-                    <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
-                      ×{p.quantity}
-                    </span>
-                    <span className="w-24 shrink-0 text-right font-mono text-sm font-semibold tabular-nums">
-                      {formatMoney(p.revenue, currency)}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <Empty text="No products sold on this day." />
-            )}
-          </Section>
-        </div>
-      )}
-
-      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {/* Sales of the day */}
-        <Section title="Sales" icon={ShoppingBag} count={data?.sales.length}>
-          {isLoading ? (
-            <Skeleton className="h-24 w-full" />
-          ) : data && data.sales.length > 0 ? (
-            <ul className="divide-y">
-              {data.sales.map((sale) => (
-                <li key={sale.id} className="flex items-center justify-between gap-3 py-2.5">
-                  <div className="min-w-0">
-                    <span className="font-mono text-xs tabular-nums text-muted-foreground">
-                      {clock(sale.created_at)}
-                    </span>
-                    <p className="truncate text-sm">
-                      {sale.customer_name ?? "Walk-in"}
-                      <span className="text-muted-foreground">
-                        {" "}
-                        · {sale.item_count} line{sale.item_count === 1 ? "" : "s"}
+          {/* Payments donut + top products */}
+          {data && (data.by_method.length > 0 || data.top_products.length > 0) && (
+            <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <ChartCard title="Payments received">
+                <DonutChart
+                  data={data.by_method.map((m) => ({
+                    name: METHOD_LABELS[m.method] ?? m.method,
+                    value: m.total,
+                    color: METHOD_COLORS[m.method],
+                  }))}
+                  currency={currency}
+                  totalLabel="Total received"
+                  maxSlices={6}
+                />
+                {s && s.settlements_received > 0 && (
+                  <div className="mt-2 flex items-baseline justify-between gap-2 border-t pt-2 text-sm">
+                    <span className="text-muted-foreground">
+                      Credit settlements
+                      <span className="ml-1 text-xs text-muted-foreground/70">
+                        (older debts paid)
                       </span>
-                    </p>
+                    </span>
+                    <span className="font-mono font-medium tabular-nums">
+                      +{formatMoney(s.settlements_received, currency)}
+                    </span>
                   </div>
-                  <span className="shrink-0 font-mono text-sm font-semibold tabular-nums">
-                    {formatMoney(sale.total, currency)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <Empty text="No sales on this day." />
-          )}
-        </Section>
+                )}
+              </ChartCard>
 
-        {/* Expenses of the day — one-time in full, monthly overheads prorated */}
-        <Section
-          title="Expenses"
-          icon={Receipt}
-          count={
-            data ? data.expenses.length + data.monthly_expenses.length : undefined
-          }
-        >
-          {isLoading ? (
-            <Skeleton className="h-24 w-full" />
-          ) : data && (data.expenses.length > 0 || data.monthly_expenses.length > 0) ? (
-            <div className="space-y-3">
-              {data.expenses.length > 0 && (
+              <Section title="Top products" icon={Trophy} count={data.top_products.length}>
+                {data.top_products.length > 0 ? (
+                  <ol className="space-y-2.5">
+                    {data.top_products.map((p, i) => (
+                      <li key={i} className="flex items-center gap-3">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted font-mono text-xs font-semibold tabular-nums text-muted-foreground">
+                          {i + 1}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-sm">{p.name}</span>
+                        <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
+                          ×{p.quantity}
+                        </span>
+                        <span className="w-24 shrink-0 text-right font-mono text-sm font-semibold tabular-nums">
+                          {formatMoney(p.revenue, currency)}
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                ) : (
+                  <Empty text="No products sold on this day." />
+                )}
+              </Section>
+            </div>
+          )}
+
+          <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {/* Sales of the day */}
+            <Section title="Sales" icon={ShoppingBag} count={data?.sales.length}>
+              {isLoading ? (
+                <Skeleton className="h-24 w-full" />
+              ) : data && data.sales.length > 0 ? (
                 <ul className="divide-y">
-                  {data.expenses.map((e, i) => (
-                    <li key={i} className="flex items-center justify-between gap-3 py-2.5">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{e.category}</p>
-                        {e.description && (
-                          <p className="truncate text-xs text-muted-foreground">{e.description}</p>
-                        )}
-                      </div>
-                      <span className="shrink-0 font-mono text-sm font-semibold tabular-nums text-destructive">
-                        −{formatMoney(e.amount, currency)}
-                      </span>
+                  {data.sales.map((row) => (
+                    <li key={row.id}>
+                      <button
+                        type="button"
+                        onClick={() => setSaleId(row.id)}
+                        className="-mx-2 flex w-[calc(100%+1rem)] items-center justify-between gap-3 rounded-md px-2 py-2.5 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <div className="min-w-0">
+                          <span className="font-mono text-xs tabular-nums text-muted-foreground">
+                            {clock(row.created_at)}
+                          </span>
+                          <p className="truncate text-sm">
+                            {row.customer_name ?? "Walk-in"}
+                            <span className="text-muted-foreground">
+                              {" "}
+                              · {row.item_count} line{row.item_count === 1 ? "" : "s"}
+                            </span>
+                          </p>
+                        </div>
+                        <span className="flex shrink-0 items-center gap-1 font-mono text-sm font-semibold tabular-nums">
+                          {formatMoney(row.total, currency)}
+                          {/* The detail is a second request, so the row says it heard the click. */}
+                          {saleId === row.id && sale.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </span>
+                      </button>
                     </li>
                   ))}
                 </ul>
+              ) : (
+                <Empty text="No sales on this day." />
               )}
+            </Section>
 
-              {data.monthly_expenses.length > 0 && (
-                <div className="rounded-md border border-dashed p-3">
-                  <p className="mb-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-                    Monthly overheads · prorated over the Ethiopian month
-                  </p>
-                  <ul className="divide-y">
-                    {data.monthly_expenses.map((e, i) => (
-                      <li key={i} className="flex items-center justify-between gap-3 py-2">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">
-                            {e.category}
-                            <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                              monthly
-                            </span>
-                          </p>
-                          <p className="truncate text-xs text-muted-foreground">
-                            {formatMoney(e.amount, currency)} / month
-                            {e.description ? ` · ${e.description}` : ""}
-                          </p>
-                        </div>
-                        <div className="shrink-0 text-right">
-                          <span className="font-mono text-sm font-semibold tabular-nums text-destructive">
-                            −{formatMoney(e.per_day, currency)}
+            {/* Expenses of the day — one-time in full, monthly overheads prorated */}
+            <Section
+              title="Expenses"
+              icon={Receipt}
+              count={data ? data.expenses.length + data.monthly_expenses.length : undefined}
+            >
+              {isLoading ? (
+                <Skeleton className="h-24 w-full" />
+              ) : data && (data.expenses.length > 0 || data.monthly_expenses.length > 0) ? (
+                <div className="space-y-3">
+                  {data.expenses.length > 0 && (
+                    <ul className="divide-y">
+                      {data.expenses.map((e, i) => (
+                        <li key={i} className="flex items-center justify-between gap-3 py-2.5">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium">{e.category}</p>
+                            {e.description && (
+                              <p className="truncate text-xs text-muted-foreground">
+                                {e.description}
+                              </p>
+                            )}
+                          </div>
+                          <span className="shrink-0 font-mono text-sm font-semibold tabular-nums text-destructive">
+                            −{formatMoney(e.amount, currency)}
                           </span>
-                          <p className="text-[10px] text-muted-foreground">today&apos;s share</p>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
 
-              {s && (
-                <div className="flex items-baseline justify-between border-t pt-2.5 text-sm">
-                  <span className="font-medium">Charged to today</span>
-                  <span className="font-mono font-semibold tabular-nums text-destructive">
-                    −{formatMoney(s.expenses_total, currency)}
-                  </span>
-                </div>
-              )}
-            </div>
-          ) : (
-            <Empty text="No expenses on this day." />
-          )}
-        </Section>
-      </div>
+                  {data.monthly_expenses.length > 0 && (
+                    <div className="rounded-md border border-dashed p-3">
+                      <p className="mb-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+                        Monthly overheads · prorated over the Ethiopian month
+                      </p>
+                      <ul className="divide-y">
+                        {data.monthly_expenses.map((e, i) => (
+                          <li key={i} className="flex items-center justify-between gap-3 py-2">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium">
+                                {e.category}
+                                <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                                  monthly
+                                </span>
+                              </p>
+                              <p className="truncate text-xs text-muted-foreground">
+                                {formatMoney(e.amount, currency)} / month
+                                {e.description ? ` · ${e.description}` : ""}
+                              </p>
+                            </div>
+                            <div className="shrink-0 text-right">
+                              <span className="font-mono text-sm font-semibold tabular-nums text-destructive">
+                                −{formatMoney(e.per_day, currency)}
+                              </span>
+                              <p className="text-[10px] text-muted-foreground">
+                                today&apos;s share
+                              </p>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
 
-      {/* Activity trail */}
-      <Section title="Activity" icon={ScrollText} count={data?.activity.length} className="mt-4">
-        {isLoading ? (
-          <Skeleton className="h-20 w-full" />
-        ) : data && data.activity.length > 0 ? (
-          <ul className="divide-y">
-            {data.activity.map((a, i) => (
-              <li key={i} className="flex items-center justify-between gap-3 py-2">
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="font-mono text-xs tabular-nums text-muted-foreground">
-                    {clock(a.created_at)}
-                  </span>
-                  <span className="truncate text-sm font-medium">{a.action}</span>
-                  <span className="hidden truncate text-xs text-muted-foreground sm:inline">
-                    {a.user_email ?? "—"}
-                  </span>
+                  {s && (
+                    <div className="flex items-baseline justify-between border-t pt-2.5 text-sm">
+                      <span className="font-medium">Charged to today</span>
+                      <span className="font-mono font-semibold tabular-nums text-destructive">
+                        −{formatMoney(s.expenses_total, currency)}
+                      </span>
+                    </div>
+                  )}
                 </div>
-                <Badge variant={LEVEL_VARIANT[a.level]}>{a.level}</Badge>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <Empty text="No activity on this day." />
-        )}
-      </Section>
+              ) : (
+                <Empty text="No expenses on this day." />
+              )}
+            </Section>
+          </div>
+
+          {/* Activity trail */}
+          <Section
+            title="Activity"
+            icon={ScrollText}
+            count={data?.activity.length}
+            className="mt-4"
+          >
+            {isLoading ? (
+              <Skeleton className="h-20 w-full" />
+            ) : data && data.activity.length > 0 ? (
+              <ul className="divide-y">
+                {data.activity.map((a, i) => (
+                  <li key={i} className="flex items-center justify-between gap-3 py-2">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="font-mono text-xs tabular-nums text-muted-foreground">
+                        {clock(a.created_at)}
+                      </span>
+                      <span className="truncate text-sm font-medium">{a.action}</span>
+                      <span className="hidden truncate text-xs text-muted-foreground sm:inline">
+                        {a.user_email ?? "—"}
+                      </span>
+                    </div>
+                    <Badge variant={LEVEL_VARIANT[a.level]}>{a.level}</Badge>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <Empty text="No activity on this day." />
+            )}
+          </Section>
         </>
       )}
+
+      <SaleDetailDialog
+        sale={sale.data ?? null}
+        currency={currency}
+        onOpenChange={(open) => !open && setSaleId(null)}
+      />
     </div>
   );
 }
@@ -627,15 +669,7 @@ function Section({
   );
 }
 
-function BreakdownRow({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-}) {
+function BreakdownRow({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
       <dt className="text-muted-foreground">
