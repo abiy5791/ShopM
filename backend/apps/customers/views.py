@@ -9,6 +9,7 @@ from apps.common.mixins import ShopScopedViewSetMixin
 from apps.common.permissions import ActiveShopRolePermission
 from apps.common.utils import get_client_ip
 from apps.common.viewsets import ShopScopedModelViewSet
+from apps.reports import summaries
 
 from .models import Customer
 from .serializers import CustomerPaymentSerializer, CustomerSerializer
@@ -22,6 +23,15 @@ class CustomerViewSet(ShopScopedModelViewSet):
     queryset = Customer.objects.all()
     search_fields = ["name", "phone"]
     ordering_fields = ["name", "credit_balance_cached", "created_at"]
+
+    @extend_schema(
+        responses={200: {"type": "object"}},
+        description="KPI cards shown above the customers table. Readable by any "
+        "member — credit balances are already on the list itself.",
+    )
+    @action(detail=False, methods=["get"])
+    def summary(self, request):
+        return Response(summaries.customers_summary(self.active_shop))
 
     @extend_schema(responses={200: dict})
     @action(detail=True, methods=["get"])

@@ -2,6 +2,7 @@ import { ScrollText, Search } from "lucide-react";
 import { useState } from "react";
 
 import { EthiopianDatePicker } from "@/components/ethiopian-date-picker";
+import { KpiRow } from "@/components/kpi";
 import { ListCard } from "@/components/list-card";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +27,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatEthiopianDateTime } from "@/lib/ethiopian";
+import { useSummary } from "@/lib/summary";
 
 import { type ActivityFilters, useActivity } from "./api";
 
@@ -38,6 +40,7 @@ const LEVEL_VARIANT = {
 export default function ActivityPage() {
   const [filters, setFilters] = useState<ActivityFilters>({ page: 1 });
   const { data, isLoading, isError } = useActivity(filters);
+  const summary = useSummary("activity");
   const rows = data?.results ?? [];
 
   function set<K extends keyof ActivityFilters>(key: K, value: ActivityFilters[K]) {
@@ -47,6 +50,8 @@ export default function ActivityPage() {
   return (
     <div>
       <PageHeader title="Activity log" description="Audit trail of actions in this shop." />
+
+      <KpiRow summary={summary.data} loading={summary.isLoading} />
 
       <div className="mb-4 flex flex-wrap items-end gap-2">
         <div className="relative w-full sm:w-56">

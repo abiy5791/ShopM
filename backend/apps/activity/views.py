@@ -1,8 +1,12 @@
+from drf_spectacular.utils import extend_schema
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
 from apps.common.mixins import ShopScopedViewSetMixin
 from apps.common.permissions import ROLE_OWNER, ActiveShopRolePermission
+from apps.reports import summaries
 
 from .filters import ActivityLogFilter
 from .models import ActivityLog
@@ -25,3 +29,12 @@ class ActivityLogViewSet(ShopScopedViewSetMixin, ReadOnlyModelViewSet):
         if self.active_role != ROLE_OWNER:
             qs = qs.filter(user=self.request.user)
         return qs.order_by("-created_at")
+
+    @extend_schema(
+        responses={200: {"type": "object"}},
+        description="KPI cards shown above the activity table. Counts the same "
+        "rows the caller can list, so a cashier sees only their own.",
+    )
+    @action(detail=False, methods=["get"])
+    def summary(self, request):
+        return Response(summaries.activity_summary(self.active_shop, self.get_queryset()))

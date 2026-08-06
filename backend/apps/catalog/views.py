@@ -12,6 +12,7 @@ from apps.activity.services import log_activity
 from apps.common.permissions import ROLE_OWNER
 from apps.common.utils import get_client_ip
 from apps.common.viewsets import ShopScopedModelViewSet
+from apps.reports import summaries
 
 from . import excel, pdf
 from .models import Category, Product, Supplier
@@ -57,7 +58,17 @@ class SupplierViewSet(ShopScopedModelViewSet):
     queryset = Supplier.objects.all()
     search_fields = ["name", "phone"]
     ordering_fields = ["name", "created_at"]
-    action_roles = OWNER_WRITE
+    # Payable figures are financials, so the KPI row is owner-only even though
+    # the supplier list itself is readable by any member.
+    action_roles = {**OWNER_WRITE, "summary": [ROLE_OWNER]}
+
+    @extend_schema(
+        responses={200: {"type": "object"}},
+        description="KPI cards shown above the suppliers table. Owner only.",
+    )
+    @action(detail=False, methods=["get"])
+    def summary(self, request):
+        return Response(summaries.suppliers_summary(self.active_shop))
 
 
 class ProductViewSet(ShopScopedModelViewSet):
@@ -140,6 +151,17 @@ class ProductViewSet(ShopScopedModelViewSet):
     def perform_destroy(self, instance):
         instance.delete()  # soft delete (plan §3.6)
         self._log("product.delete", instance)
+
+    @extend_schema(
+        responses={200: {"type": "object"}},
+        description="KPI cards shown above the products table. Owners get stock "
+        "valuation; cashiers get stock counts instead (plan §8).",
+    )
+    @action(detail=False, methods=["get"])
+    def summary(self, request):
+        return Response(
+            summaries.products_summary(self.active_shop, financial=self.active_role == ROLE_OWNER)
+        )
 
     @extend_schema(
         responses={200: {"type": "array", "items": {"type": "string"}}},

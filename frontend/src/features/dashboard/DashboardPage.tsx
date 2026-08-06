@@ -1,18 +1,7 @@
-import {
-  ArrowDownRight,
-  ArrowUpRight,
-  Boxes,
-  Minus,
-  Receipt,
-  ScanLine,
-  TrendingUp,
-  Users,
-  Wallet,
-} from "lucide-react";
-import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Boxes, Receipt, TrendingUp, Wallet } from "lucide-react";
 
 import { TrendAreaChart } from "@/components/charts";
+import { DeltaBadge, Kpi } from "@/components/kpi";
 import { RankedBarList } from "@/components/ranked-bar-list";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,9 +10,10 @@ import { useActiveShop } from "@/features/pos/api";
 import { useAuthStore } from "@/lib/auth";
 import { formatEthiopianShort } from "@/lib/ethiopian";
 import { formatMoney } from "@/lib/money";
-import { cn, formatDateTime } from "@/lib/utils";
+import { formatDateTime } from "@/lib/utils";
 
-import { useDashboard } from "./api";
+import { useDashboard, useShift } from "./api";
+import { ShiftDashboard } from "./ShiftDashboard";
 
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
@@ -34,24 +24,19 @@ export default function DashboardPage() {
   const shop = useActiveShop();
   const currency = shop?.currency ?? "ETB";
   const { data, isLoading } = useDashboard(isOwner);
+  const shift = useShift(!isOwner);
 
   const firstName = user?.full_name.split(" ")[0] ?? "";
 
   if (!isOwner) {
-    // Cashiers don't see financials (plan §8) — give them quick actions instead.
+    // Cashiers get their own shift instead of the shop's books (plan §8).
     return (
-      <div>
-        <PageHeader title={`Welcome, ${firstName}`} description="Quick actions for your shift." />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <QuickLink to="/pos" icon={ScanLine} title="Point of Sale" desc="Ring up a sale" />
-          <QuickLink
-            to="/customers"
-            icon={Users}
-            title="Customers"
-            desc="Manage customers & credit"
-          />
-        </div>
-      </div>
+      <ShiftDashboard
+        firstName={firstName}
+        currency={currency}
+        data={shift.data}
+        isLoading={shift.isLoading}
+      />
     );
   }
 
@@ -100,7 +85,7 @@ export default function DashboardPage() {
           value={data ? formatMoney(data.cash_balance, currency) : undefined}
           sub="All time: cash received − expenses & purchases"
           loading={isLoading}
-          negative={Boolean(data && data.cash_balance < 0)}
+          tone={data && data.cash_balance < 0 ? "negative" : "default"}
         />
         <Kpi
           label="Low-stock items"
@@ -212,104 +197,6 @@ export default function DashboardPage() {
   );
 }
 
-function Kpi({
-  label,
-  icon: Icon,
-  value,
-  sub,
-  loading,
-  delta,
-  negative = false,
-}: {
-  label: string;
-  icon: typeof Receipt;
-  value?: string;
-  sub?: string;
-  loading: boolean;
-  delta?: ReactNode;
-  negative?: boolean;
-}) {
-  return (
-    <Card className="p-5">
-      {/* Label set as an uppercase mono micro-label — the receipt's own
-          vernacular (SUBTOTAL / CASH / CHANGE), so every tile reads like a line
-          off the printer. */}
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
-          {label}
-        </span>
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-accent/10 text-accent">
-          <Icon className="h-4 w-4" />
-        </span>
-      </div>
-      {loading || value === undefined ? (
-        <Skeleton className="mt-3 h-8 w-24" />
-      ) : (
-        <div
-          className={
-            "mt-3 font-mono text-[26px] font-semibold leading-none tabular-nums" +
-            (negative ? " text-destructive" : "")
-          }
-        >
-          {value}
-        </div>
-      )}
-      {(sub || delta) && (
-        <div className="mt-2 flex items-center gap-2">
-          {delta}
-          {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
-        </div>
-      )}
-    </Card>
-  );
-}
-
-/** A trend chip in the PNL style: green up / red down / muted flat, with the
- *  period-over-period change. Shows only real comparisons — no baseline yet
- *  reads as "New", equal reads flat. */
-function DeltaBadge({
-  current,
-  previous,
-  label,
-}: {
-  current: number;
-  previous: number;
-  label?: string;
-}) {
-  let dir: "up" | "down" | "flat" = "flat";
-  let text = "—";
-  if (previous === 0) {
-    if (current > 0) {
-      dir = "up";
-      text = "New";
-    }
-  } else {
-    const pct = ((current - previous) / previous) * 100;
-    dir = pct > 0 ? "up" : pct < 0 ? "down" : "flat";
-    const rounded = Math.abs(pct) >= 10 ? Math.round(pct) : Math.round(pct * 10) / 10;
-    text = `${pct > 0 ? "+" : ""}${rounded}%`;
-  }
-  const Icon = dir === "up" ? ArrowUpRight : dir === "down" ? ArrowDownRight : Minus;
-  const tone =
-    dir === "up"
-      ? "bg-accent/10 text-accent"
-      : dir === "down"
-        ? "bg-destructive/10 text-destructive"
-        : "bg-muted text-muted-foreground";
-  return (
-    <span
-      title={label}
-      className={cn(
-        "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-mono text-[11px] font-medium tabular-nums",
-        tone,
-      )}
-    >
-      <Icon className="h-3 w-3" />
-      {text}
-    </span>
-  );
-}
-
 function MiniStat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div className="min-w-0">
@@ -325,32 +212,4 @@ function MiniStat({ label, value, hint }: { label: string; value: string; hint?:
 /** "2026-07-13" → "Hamle 6" (Ethiopian short), for the best-day hint. */
 function shortDay(iso: string): string {
   return formatEthiopianShort(iso);
-}
-
-function QuickLink({
-  to,
-  icon: Icon,
-  title,
-  desc,
-}: {
-  to: string;
-  icon: typeof Receipt;
-  title: string;
-  desc: string;
-}) {
-  return (
-    <Link to={to}>
-      <Card className="transition-colors hover:border-accent">
-        <CardContent className="flex items-center gap-3 p-5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10 text-accent">
-            <Icon className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="font-medium">{title}</p>
-            <p className="text-sm text-muted-foreground">{desc}</p>
-          </div>
-        </CardContent>
-      </Card>
-    </Link>
-  );
 }

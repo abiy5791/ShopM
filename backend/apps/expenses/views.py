@@ -1,9 +1,13 @@
+from drf_spectacular.utils import extend_schema
+from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
+from rest_framework.response import Response
 
 from apps.activity.services import log_activity
 from apps.common.permissions import ROLE_OWNER
 from apps.common.utils import get_client_ip
 from apps.common.viewsets import ShopScopedModelViewSet
+from apps.reports import summaries
 
 from .models import Expense, ExpenseCategory
 from .serializers import ExpenseCategorySerializer, ExpenseSerializer
@@ -31,6 +35,15 @@ class ExpenseViewSet(ShopScopedModelViewSet):
     filterset_fields = ["category"]
     search_fields = ["description"]
     ordering_fields = ["date", "amount", "created_at"]
+
+    @extend_schema(
+        responses={200: {"type": "object"}},
+        description="KPI cards shown above the expenses table (month total, daily "
+        "average, top category, recurring costs).",
+    )
+    @action(detail=False, methods=["get"])
+    def summary(self, request):
+        return Response(summaries.expenses_summary(self.active_shop))
 
     def _log(self, action_name, expense):
         log_activity(

@@ -12,7 +12,12 @@ from apps.common.permissions import ROLE_OWNER, ActiveShopRolePermission
 
 from . import services
 from .exporters import filename_for, to_pdf, to_xlsx
-from .serializers import DashboardSerializer, DayBookSerializer, ReportSerializer
+from .serializers import (
+    DashboardSerializer,
+    DayBookSerializer,
+    ReportSerializer,
+    ShiftSerializer,
+)
 
 _CONTENT_TYPES = {
     "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -43,6 +48,23 @@ class DashboardView(ShopScopedViewSetMixin, generics.GenericAPIView):
     def get(self, request, *args, **kwargs):
         on_date = _parse_date(request.query_params.get("date"))
         return Response(services.dashboard(self.active_shop, on_date=on_date))
+
+
+class ShiftView(ShopScopedViewSetMixin, generics.GenericAPIView):
+    """GET /shift — the signed-in user's own day: their sales, their week, and
+    the shelf facts they need at the counter. Open to any shop member; an owner
+    sees their own till here and the shop's numbers on /dashboard."""
+
+    permission_classes = [IsAuthenticated, ActiveShopRolePermission]
+    serializer_class = ShiftSerializer
+
+    @extend_schema(
+        parameters=[OpenApiParameter("date", str, description="YYYY-MM-DD (default today)")],
+        responses={200: ShiftSerializer},
+    )
+    def get(self, request, *args, **kwargs):
+        on_date = _parse_date(request.query_params.get("date"))
+        return Response(services.shift(self.active_shop, request.user, on_date=on_date))
 
 
 class DayBookView(ShopScopedViewSetMixin, generics.GenericAPIView):

@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { RefreshCw, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -31,6 +32,7 @@ interface Props {
  * (e.g. after restocking) or explicitly discards it.
  */
 export function FailedSalesDialog({ open, onOpenChange, currency, onChanged }: Props) {
+  const qc = useQueryClient();
   const shopId = useAuthStore((s) => s.activeShopId);
   const [entries, setEntries] = useState<FailedSaleEntry[]>([]);
   const [busy, setBusy] = useState<string | null>(null); // client_uuid being acted on
@@ -56,6 +58,10 @@ export function FailedSalesDialog({ open, onOpenChange, currency, onChanged }: P
       await load();
       await onChanged();
       if (synced > 0) {
+        // The sale landed on the server — refresh what it changed.
+        for (const key of [["sales"], ["products"], ["customers"], ["dashboard"]]) {
+          qc.invalidateQueries({ queryKey: key });
+        }
         toast.success("Sale synced.");
       } else {
         toast.error("The sale was rejected again — see the reason below.");

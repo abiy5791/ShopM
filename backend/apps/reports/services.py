@@ -19,6 +19,7 @@ from django.utils import timezone
 from apps.activity.models import ActivityLog
 from apps.catalog.models import Product
 from apps.common import ethiopian
+from apps.customers.models import Customer
 from apps.expenses.models import Expense
 from apps.purchases.models import Purchase
 from apps.sales.models import Payment, Sale, SaleItem
@@ -327,6 +328,109 @@ def dashboard(shop, on_date: date | None = None) -> dict:
             {"id": str(s["id"]), "total": s["total"], "created_at": s["created_at"].isoformat()}
             for s in recent_sales
         ],
+    }
+
+
+# ---------------------------------------------------------------- shift
+def shift(shop, user, on_date: date | None = None) -> dict:
+    """One cashier's own day — the dashboard they land on after logging in.
+
+    Everything here is either the user's own work (their sales, their items,
+    their week) or operational fact they need at the counter (what's low or out
+    of stock, who owes money before another credit sale). Deliberately no shop
+    profit, valuation or cash position: those stay on the owner's dashboard
+    (plan §8).
+    """
+    day = on_date or timezone.now().date()
+    day_start, day_end = _datetime_range(day, day)
+    prev_start, prev_end = _datetime_range(day - timedelta(days=1), day - timedelta(days=1))
+
+    mine = _completed_sales(shop).filter(cashier=user)
+    today_qs = mine.filter(created_at__gte=day_start, created_at__lt=day_end)
+    agg = today_qs.aggregate(total=Sum("total"), count=Count("id"))
+    sales_total = agg["total"] or 0
+    sales_count = agg["count"] or 0
+    items_sold = SaleItem.objects.filter(sale__in=today_qs).aggregate(q=Sum("quantity"))["q"] or 0
+    yesterday_total = (
+        mine.filter(created_at__gte=prev_start, created_at__lt=prev_end).aggregate(s=Sum("total"))[
+            "s"
+        ]
+        or 0
+    )
+
+    # How the shop as a whole did today is not shown, but the cashier's own
+    # 7-day shape is — it answers "is today normal for me?".
+    week_start_day = day - timedelta(days=6)
+    ws, we = _datetime_range(week_start_day, day)
+    weekly = (
+        mine.filter(created_at__gte=ws, created_at__lt=we)
+        .annotate(bucket=TruncDate("created_at"))
+        .values("bucket")
+        .annotate(total=Sum("total"), count=Count("id"))
+    )
+    weekly_map = {g["bucket"]: (g["total"] or 0, g["count"]) for g in weekly}
+    week_series = []
+    for i in range(7):
+        d = week_start_day + timedelta(days=i)
+        total, count = weekly_map.get(d, (0, 0))
+        week_series.append({"date": str(d), "total": total, "count": count})
+
+    top_products = [
+        {"name": r["name_snapshot"], "quantity": r["quantity"]}
+        for r in SaleItem.objects.filter(sale__in=today_qs)
+        .values("name_snapshot")
+        .annotate(quantity=Sum("quantity"))
+        .order_by("-quantity")[:5]
+    ]
+
+    recent_sales = [
+        {
+            "id": str(s.id),
+            "created_at": s.created_at.isoformat(),
+            "total": s.total,
+            "item_count": s.item_count,
+            "customer_name": s.customer.name if s.customer else None,
+        }
+        for s in today_qs.select_related("customer")
+        .annotate(item_count=Count("items"))
+        .order_by("-created_at")[:8]
+    ]
+
+    # Shelf intelligence: what to warn a customer about before promising it.
+    low_stock = [
+        {"name": p.name, "sku": p.sku, "stock": p.stock_cached}
+        for p in Product.objects.filter(
+            shop=shop, status=Product.Status.ACTIVE, stock_cached__lte=F("min_stock_alert")
+        ).order_by("stock_cached", "name")[:6]
+    ]
+
+    # Customers carrying a balance — checked before extending more credit.
+    debtors_qs = Customer.objects.filter(shop=shop, credit_balance_cached__gt=0)
+    top_debtors = [
+        {"name": c.name, "balance": c.credit_balance_cached}
+        for c in debtors_qs.order_by("-credit_balance_cached")[:5]
+    ]
+
+    return {
+        "currency": _currency(shop),
+        "date": str(day),
+        "date_ethiopian": ethiopian.format_ethiopian(day),
+        "today": {
+            "sales_total": sales_total,
+            "sales_count": sales_count,
+            "items_sold": items_sold,
+            "avg_sale": round(sales_total / sales_count) if sales_count else 0,
+            "yesterday_total": yesterday_total,
+        },
+        "week_series": week_series,
+        "top_products": top_products,
+        "recent_sales": recent_sales,
+        "low_stock": low_stock,
+        "low_stock_count": Product.objects.filter(
+            shop=shop, stock_cached__lte=F("min_stock_alert")
+        ).count(),
+        "debtor_count": debtors_qs.count(),
+        "top_debtors": top_debtors,
     }
 
 

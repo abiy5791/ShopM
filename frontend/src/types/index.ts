@@ -150,13 +150,7 @@ export interface InventoryTransaction {
   created_at: string;
 }
 
-export type PaymentMethod =
-  | "cash"
-  | "telebirr"
-  | "cbe"
-  | "abyssinia"
-  | "bank"
-  | "mobile_money";
+export type PaymentMethod = "cash" | "telebirr" | "cbe" | "abyssinia" | "bank" | "mobile_money";
 
 export interface SaleItemInput {
   product: string;
@@ -322,6 +316,34 @@ export interface DashboardData {
   cash_balance: number;
   best_sellers: { name: string; quantity: number }[];
   recent_sales: { id: string; total: number; created_at: string }[];
+}
+
+/** A cashier's own day (GET /shift): their till, plus counter-side shelf facts.
+ *  Deliberately carries no shop profit, valuation or cash position. */
+export interface ShiftData {
+  currency: string;
+  date: string;
+  date_ethiopian: string;
+  today: {
+    sales_total: number;
+    sales_count: number;
+    items_sold: number;
+    avg_sale: number;
+    yesterday_total: number;
+  };
+  week_series: { date: string; total: number; count: number }[];
+  top_products: { name: string; quantity: number }[];
+  recent_sales: {
+    id: string;
+    created_at: string;
+    total: number;
+    item_count: number;
+    customer_name: string | null;
+  }[];
+  low_stock: { name: string; sku: string; stock: number }[];
+  low_stock_count: number;
+  debtor_count: number;
+  top_debtors: { name: string; balance: number }[];
 }
 
 export interface DayBookData {

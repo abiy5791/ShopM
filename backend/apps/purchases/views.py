@@ -1,5 +1,6 @@
 from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.exceptions import APIException
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -9,6 +10,7 @@ from apps.common.mixins import ShopScopedViewSetMixin
 from apps.common.permissions import ROLE_OWNER, ActiveShopRolePermission
 from apps.common.utils import get_client_ip
 from apps.inventory.services import NegativeStockError
+from apps.reports import summaries
 
 from .models import Purchase
 from .serializers import (
@@ -55,6 +57,15 @@ class PurchaseViewSet(
         if not getattr(self, "swagger_fake_view", False):
             ctx["active_shop"] = self.active_shop
         return ctx
+
+    @extend_schema(
+        responses={200: {"type": "object"}},
+        description="KPI cards shown above the purchases table (month spend, "
+        "amount paid, outstanding payable, top supplier).",
+    )
+    @action(detail=False, methods=["get"])
+    def summary(self, request):
+        return Response(summaries.purchases_summary(self.active_shop))
 
     @extend_schema(request=PurchaseCreateSerializer, responses={201: PurchaseSerializer})
     def create(self, request, *args, **kwargs):

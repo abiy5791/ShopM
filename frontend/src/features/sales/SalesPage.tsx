@@ -3,6 +3,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { KpiRow } from "@/components/kpi";
 import { ListCard, Fact } from "@/components/list-card";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +21,7 @@ import {
 import { useActiveShop } from "@/features/pos/api";
 import { useAuthStore } from "@/lib/auth";
 import { formatMoney } from "@/lib/money";
+import { useSummary } from "@/lib/summary";
 import { formatDateTime } from "@/lib/utils";
 import type { Sale } from "@/types";
 
@@ -36,6 +38,9 @@ export default function SalesPage() {
   const [voiding, setVoiding] = useState<Sale | null>(null);
   const [detail, setDetail] = useState<Sale | null>(null);
   const { data, isLoading, isError, refetch } = useSales(page);
+  // Owners get the shop's takings here; a cashier gets the same four figures
+  // for their own sales only (plan §8).
+  const summary = useSummary("sales");
   const voidSale = useVoidSale();
   const rows = data?.results ?? [];
 
@@ -56,6 +61,8 @@ export default function SalesPage() {
         title="Sales"
         description="Completed sales for this shop. Select a sale for full details."
       />
+
+      <KpiRow summary={summary.data} loading={summary.isLoading} />
 
       <Card className="overflow-hidden">
         {/* Desktop table */}

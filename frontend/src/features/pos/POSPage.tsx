@@ -1,4 +1,5 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   Minus,
@@ -55,6 +56,7 @@ import { Receipt } from "./Receipt";
 import type { Product } from "@/types";
 
 export default function POSPage() {
+  const qc = useQueryClient();
   const shop = useActiveShop();
   const shopId = useAuthStore((s) => s.activeShopId);
   const user = useAuthStore((s) => s.user);
@@ -182,7 +184,16 @@ export default function POSPage() {
       cart.clear();
       setDiscountInput("");
       setCustomerId("none");
-      if (!result.synced) await refreshPendingSync(); // reflect the new queued sale immediately
+      if (result.synced) {
+        // Server state moved: the sale, the stock it consumed, and any credit
+        // it added. Without this the cached lists and KPI rows (shift dashboard,
+        // sales and product summaries) would show pre-sale numbers for 30s.
+        for (const key of [["sales"], ["products"], ["customers"], ["dashboard"]]) {
+          qc.invalidateQueries({ queryKey: key });
+        }
+      } else {
+        await refreshPendingSync(); // reflect the new queued sale immediately
+      }
       toast.success(result.synced ? "Sale completed" : "Saved offline — will sync when online");
     } catch (err) {
       const short = stockShortages(err);

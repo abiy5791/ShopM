@@ -1,6 +1,7 @@
 import { Plus, Truck } from "lucide-react";
 import { useState } from "react";
 
+import { KpiRow } from "@/components/kpi";
 import { ListCard, Fact } from "@/components/list-card";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +19,7 @@ import {
 import { useActiveShop } from "@/features/pos/api";
 import { formatEthiopian } from "@/lib/ethiopian";
 import { formatMoney } from "@/lib/money";
+import { useSummary } from "@/lib/summary";
 import type { PaymentStatus, Purchase } from "@/types";
 
 import { usePurchases } from "./api";
@@ -38,6 +40,7 @@ export default function PurchasesPage() {
   const [editing, setEditing] = useState<Purchase | null>(null);
   const [detail, setDetail] = useState<Purchase | null>(null);
   const { data, isLoading, isError, refetch } = usePurchases(page);
+  const summary = useSummary("purchases");
   const rows = data?.results ?? [];
 
   function openNew() {
@@ -62,6 +65,8 @@ export default function PurchasesPage() {
           </Button>
         }
       />
+
+      <KpiRow summary={summary.data} loading={summary.isLoading} />
 
       <Card className="overflow-hidden">
         {/* Desktop table */}

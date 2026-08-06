@@ -14,6 +14,7 @@ import { type ChangeEvent, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { KpiRow } from "@/components/kpi";
 import { ListCard, Fact } from "@/components/list-card";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +40,7 @@ import {
 import { useAuthStore } from "@/lib/auth";
 import { readBlobError } from "@/lib/download";
 import { formatMoney } from "@/lib/money";
+import { useSummary } from "@/lib/summary";
 import type { Product } from "@/types";
 
 import {
@@ -89,6 +91,9 @@ export default function ProductsPage() {
   const [detail, setDetail] = useState<Product | null>(null);
 
   const { data, isLoading, isError, refetch } = useProducts({ search, lowStock, page });
+  // The server picks the card set by role — valuation for owners, stock counts
+  // for cashiers — so both see a row.
+  const summary = useSummary("products");
   const rows = data?.results ?? [];
   const pageSize = 25;
   const from = data && data.count > 0 ? (page - 1) * pageSize + 1 : 0;
@@ -214,6 +219,8 @@ export default function ProductsPage() {
           )
         }
       />
+
+      <KpiRow summary={summary.data} loading={summary.isLoading} />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="relative w-full flex-1 sm:max-w-xs">

@@ -1,6 +1,7 @@
 import { Factory, Pencil, Plus, Search } from "lucide-react";
 import { useState } from "react";
 
+import { KpiRow } from "@/components/kpi";
 import { ListCard } from "@/components/list-card";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import {
 } from "@/components/ui/table";
 import { useActiveShop } from "@/features/pos/api";
 import { formatMoney } from "@/lib/money";
+import { useSummary } from "@/lib/summary";
 import type { Supplier } from "@/types";
 
 import { useSuppliersList } from "./api";
@@ -41,6 +43,7 @@ export default function SuppliersPage() {
   }
 
   const { data, isLoading, isError, refetch } = useSuppliersList(search, page);
+  const summary = useSummary("suppliers");
   const rows = data?.results ?? [];
 
   return (
@@ -54,6 +57,8 @@ export default function SuppliersPage() {
           </Button>
         }
       />
+
+      <KpiRow summary={summary.data} loading={summary.isLoading} />
 
       <div className="mb-4 max-w-xs">
         <div className="relative">

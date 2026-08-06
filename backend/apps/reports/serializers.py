@@ -32,6 +32,22 @@ class DayBookSerializer(serializers.Serializer):
     activity = serializers.ListField(child=serializers.DictField())
 
 
+class ShiftSerializer(serializers.Serializer):
+    """A cashier's own day: their sales and the shelf facts they need."""
+
+    currency = serializers.CharField()
+    date = serializers.CharField()
+    date_ethiopian = serializers.CharField()
+    today = serializers.DictField()
+    week_series = serializers.ListField(child=serializers.DictField())
+    top_products = serializers.ListField(child=serializers.DictField())
+    recent_sales = serializers.ListField(child=serializers.DictField())
+    low_stock = serializers.ListField(child=serializers.DictField())
+    low_stock_count = serializers.IntegerField()
+    debtor_count = serializers.IntegerField()
+    top_debtors = serializers.ListField(child=serializers.DictField())
+
+
 class DashboardSerializer(serializers.Serializer):
     currency = serializers.CharField()
     today = serializers.DictField()

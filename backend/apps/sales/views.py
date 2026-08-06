@@ -9,6 +9,7 @@ from apps.activity.services import log_activity
 from apps.common.mixins import ShopScopedViewSetMixin
 from apps.common.permissions import ROLE_OWNER, ActiveShopRolePermission
 from apps.common.utils import get_client_ip
+from apps.reports import summaries
 
 from .models import Sale
 from .serializers import ReceiptSerializer, SaleCreateSerializer, SaleSerializer
@@ -37,7 +38,8 @@ class SaleViewSet(
     permission_classes = [IsAuthenticated, ActiveShopRolePermission]
     filterset_fields = ["status", "cashier"]
     ordering_fields = ["created_at", "total"]
-    # Create/list/retrieve/receipt are open to any shop member; voiding is owner-only.
+    # Create/list/retrieve/receipt/summary are open to any shop member; voiding
+    # is owner-only.
     action_roles = {"void": [ROLE_OWNER]}
 
     def get_serializer_class(self):
@@ -120,6 +122,19 @@ class SaleViewSet(
                 metadata={"total": sale.total},
             )
         return Response(SaleSerializer(sale, context=self.get_serializer_context()).data)
+
+    @extend_schema(
+        responses={200: {"type": "object"}},
+        description=(
+            "KPI cards shown above the sales table. Owners get the shop's takings "
+            "(today, month, average, credit outstanding); a cashier gets the same "
+            "figures for their own sales only — their till, not the shop's."
+        ),
+    )
+    @action(detail=False, methods=["get"])
+    def summary(self, request):
+        cashier = None if self.active_role == ROLE_OWNER else request.user
+        return Response(summaries.sales_summary(self.active_shop, cashier=cashier))
 
     @extend_schema(responses={200: ReceiptSerializer})
     @action(detail=True, methods=["get"])

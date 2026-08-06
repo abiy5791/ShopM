@@ -3,6 +3,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { KpiRow } from "@/components/kpi";
 import { ListCard } from "@/components/list-card";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ import {
 import { useActiveShop } from "@/features/pos/api";
 import { formatEthiopian } from "@/lib/ethiopian";
 import { formatMoney } from "@/lib/money";
+import { useSummary } from "@/lib/summary";
 import type { Expense } from "@/types";
 
 import { useDeleteExpense, useExpenses } from "./api";
@@ -38,6 +40,7 @@ export default function ExpensesPage() {
   const [detail, setDetail] = useState<Expense | null>(null);
   const [receipt, setReceipt] = useState<string | null>(null);
   const { data, isLoading, isError, refetch } = useExpenses(page);
+  const summary = useSummary("expenses");
   const del = useDeleteExpense();
   const rows = data?.results ?? [];
 
@@ -63,6 +66,8 @@ export default function ExpensesPage() {
           </Button>
         }
       />
+
+      <KpiRow summary={summary.data} loading={summary.isLoading} />
 
       <Card className="overflow-hidden">
         {/* Desktop table */}
