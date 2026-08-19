@@ -26,12 +26,16 @@ export function AppShell() {
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
 
   const headerBar = (
-    <header className="flex h-14 items-center justify-between border-b bg-card/85 px-4 backdrop-blur supports-[backdrop-filter]:bg-card/70">
-      <div className="flex items-center gap-1">
+    <header className="flex h-14 items-center justify-between gap-2 border-b bg-card/85 px-4 backdrop-blur supports-[backdrop-filter]:bg-card/70">
+      {/* `min-w-0` lets the shop name truncate instead of growing the row, and
+          `shrink-0` keeps the actions anchored. Without both, a long shop name
+          pushes the account menu off the right edge of a phone — it is still in
+          the DOM and still "visible", just past the screen. */}
+      <div className="flex min-w-0 items-center gap-1">
         <MobileNav />
         <ShopSwitcher />
       </div>
-      <div className="flex items-center gap-1">
+      <div className="flex shrink-0 items-center gap-1">
         <ThemeToggle />
         <NotificationBell />
         <UserMenu />

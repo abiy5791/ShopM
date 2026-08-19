@@ -19,7 +19,12 @@ test.describe("critical path: login → POS sale → void → report", () => {
     await page.getByRole("button", { name: /^Charge Br/ }).click();
 
     await expect(page.getByRole("heading", { name: "Receipt" })).toBeVisible();
-    await expect(page.getByText("OFFLINE", { exact: false })).toHaveCount(0);
+    // Scoped to the receipt itself: getByText is case-insensitive and
+    // substring-based, so an unscoped "OFFLINE" also matches the sidebar's
+    // "Offline-ready · v0.1" footer and this can never pass.
+    await expect(page.locator("#receipt-print").getByText("OFFLINE", { exact: false })).toHaveCount(
+      0,
+    );
     await page.getByRole("button", { name: "Done" }).click();
 
     // --- Sales: the new sale is on top; void it ---

@@ -16,7 +16,12 @@ export function MobileNav() {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={setOpen}>
       <DialogPrimitive.Trigger asChild>
-        <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open navigation">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="shrink-0 md:hidden"
+          aria-label="Open navigation"
+        >
           <Menu className="h-5 w-5" />
         </Button>
       </DialogPrimitive.Trigger>

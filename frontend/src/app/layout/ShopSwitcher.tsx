@@ -23,9 +23,13 @@ export function ShopSwitcher() {
   // A single shop needs no switcher — just show it.
   if (memberships.length === 1) {
     return (
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium">{active?.shop_name}</span>
-        {active && <Badge variant="secondary">{active.role}</Badge>}
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="truncate text-sm font-medium">{active?.shop_name}</span>
+        {active && (
+          <Badge variant="secondary" className="shrink-0">
+            {active.role}
+          </Badge>
+        )}
       </div>
     );
   }
@@ -33,9 +37,9 @@ export function ShopSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
-          <span className="max-w-[12rem] truncate">{active?.shop_name ?? "Select shop"}</span>
-          <ChevronsUpDown className="h-3.5 w-3.5 opacity-60" />
+        <Button variant="outline" size="sm" className="min-w-0 gap-2">
+          <span className="truncate">{active?.shop_name ?? "Select shop"}</span>
+          <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
