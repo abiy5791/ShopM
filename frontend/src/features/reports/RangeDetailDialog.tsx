@@ -48,7 +48,9 @@ export function RangeDetailDialog({
     { period: "daily", start: range?.start, end: range?.end },
     Boolean(range),
   );
-  const days = (data?.series ?? []) as SalesSeriesPoint[];
+  // The series is zero-filled for charting; the breakdown lists only the days
+  // that actually sold, so a quiet month isn't 30 rows of Br0.00.
+  const days = ((data?.series ?? []) as SalesSeriesPoint[]).filter((d) => d.count > 0);
 
   return (
     <>
@@ -56,7 +58,9 @@ export function RangeDetailDialog({
         <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{range?.label}</DialogTitle>
-            <DialogDescription>Sales for this period. Click a day for its detail.</DialogDescription>
+            <DialogDescription>
+              Sales for this period. Click a day for its detail.
+            </DialogDescription>
           </DialogHeader>
 
           {isLoading || !data ? (
@@ -83,7 +87,10 @@ export function RangeDetailDialog({
                   <h3 className="mb-1 text-sm font-semibold">Payments received</h3>
                   <ul className="divide-y">
                     {(data.by_method ?? []).map((m) => (
-                      <li key={m.method} className="flex items-center justify-between py-1.5 text-sm">
+                      <li
+                        key={m.method}
+                        className="flex items-center justify-between py-1.5 text-sm"
+                      >
                         <span className="text-muted-foreground">
                           {METHOD_LABELS[m.method] ?? m.method}
                         </span>
@@ -104,9 +111,8 @@ export function RangeDetailDialog({
                     <li key={d.date}>
                       <button
                         type="button"
-                        disabled={d.count === 0}
                         onClick={() => setDayDetail(d.date)}
-                        className="flex w-full items-center justify-between gap-3 py-2 text-left text-sm transition-colors enabled:hover:bg-muted/50 disabled:opacity-50"
+                        className="flex w-full items-center justify-between gap-3 py-2 text-left text-sm transition-colors hover:bg-muted/50"
                       >
                         <span>{formatEthiopian(d.date)}</span>
                         <span className="flex items-center gap-3">
@@ -116,7 +122,7 @@ export function RangeDetailDialog({
                           <span className="w-24 text-right font-mono font-semibold tabular-nums">
                             {formatMoney(d.total, currency)}
                           </span>
-                          {d.count > 0 && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
                         </span>
                       </button>
                     </li>

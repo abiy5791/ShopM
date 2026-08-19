@@ -104,6 +104,21 @@ def test_profit_report_excludes_tax_from_revenue_and_profit(make_user, make_shop
     assert margin["value"] == 20
 
 
+def test_sales_report_table_skips_periods_without_sales(shop_with_sale):
+    """Quiet days stay in the chart series but are left out of the table."""
+    shop, client = shop_with_sale
+    start = (timezone.now().date() - timedelta(days=3)).isoformat()
+    data = client.get(f"/api/v1/reports/sales?start={start}").data
+
+    assert len(data["series"]) == 4  # still zero-filled for the chart
+    assert [p["total"] for p in data["series"][:3]] == [0, 0, 0]
+    # Only the day that sold reaches the table (and so the PDF/XLSX exports).
+    assert len(data["rows"]) == 1
+    assert data["rows"][0][1:] == [1, 2000]
+    # And that row ties back to its series point by label.
+    assert data["rows"][0][0] == data["series"][-1]["label"]
+
+
 def test_sales_report_reports_tax_collected(make_user, make_shop, auth):
     """The sales KPIs show the tax charged to customers over the range."""
     import uuid

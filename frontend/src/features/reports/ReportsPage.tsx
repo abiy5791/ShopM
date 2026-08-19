@@ -114,12 +114,16 @@ export default function ReportsPage() {
   const { data, isLoading, isError, refetch } = useReport(tab, params);
 
   // Sales rows drill down: a daily row opens that day's full close; a
-  // weekly/monthly/yearly row opens a summary for its date range. rows and
-  // series are row-aligned, so series[i] carries the date/range for rows[i].
+  // weekly/monthly/yearly row opens a summary for its date range. The table
+  // skips periods with no sales while the chart series keeps them, so a row is
+  // matched to its point by label rather than by index.
   const salesDrillEnabled = tab === "sales";
-  const seriesPoints = salesDrillEnabled
-    ? ((data?.series as SalesSeriesPoint[] | undefined) ?? [])
-    : [];
+  const pointByLabel = new Map(
+    (salesDrillEnabled ? ((data?.series as SalesSeriesPoint[] | undefined) ?? []) : []).map((p) => [
+      p.label,
+      p,
+    ]),
+  );
 
   async function handleDownload(format: "pdf" | "xlsx") {
     setDownloading(format);
@@ -267,7 +271,7 @@ export default function ReportsPage() {
                 ))}
               {!isLoading &&
                 data?.rows.map((row, ri) => {
-                  const point = salesDrillEnabled ? seriesPoints[ri] : undefined;
+                  const point = pointByLabel.get(String(row[0]));
                   const onRowClick = point
                     ? () =>
                         period === "daily"

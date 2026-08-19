@@ -474,6 +474,8 @@ export interface ReportSummaryItem {
 
 export interface SalesSeriesPoint {
   date: string;
+  /** Ethiopian bucket label — matches the table row's first cell. */
+  label?: string;
   total: number;
   count: number;
   start?: string; // Gregorian ISO — the bucket's first day (for drill-down)

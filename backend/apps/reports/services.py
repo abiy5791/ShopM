@@ -517,10 +517,14 @@ def sales_report(shop, *, period="daily", start=None, end=None) -> dict:
         day += timedelta(days=1)
     ordered = [buckets[k] for k in sorted(buckets)]
 
-    rows = [[b["label"], b["count"], b["total"]] for b in ordered]
+    # Quiet periods are dropped from the table (and so from the PDF/XLSX) — a
+    # page of Br0.00 rows is noise. They stay in the chart series so the time
+    # axis keeps its true shape; the label ties a row back to its series point.
+    rows = [[b["label"], b["count"], b["total"]] for b in ordered if b["count"]]
     series = [
         {
             "date": b["date"],
+            "label": b["label"],
             "total": b["total"],
             "count": b["count"],
             "start": b["start"],
