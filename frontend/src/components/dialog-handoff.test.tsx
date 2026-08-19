@@ -3,6 +3,12 @@ import { useState } from "react";
 import { describe, expect, it } from "vitest";
 
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 /**
  * Guards the "page is frozen" class of bug at its most dangerous point.
@@ -69,6 +75,58 @@ describe("closing one dialog while opening another", () => {
     fireEvent.click(screen.getByText("Correct"));
     await screen.findByText("Save");
     expect(document.body.style.pointerEvents).toBe("none"); // still modal
+
+    fireEvent.click(screen.getByText("Save"));
+
+    // The whole point: <body> is handed back, so the app stays usable.
+    await waitFor(() => expect(document.body.style.pointerEvents).toBe(""));
+  });
+});
+
+/**
+ * The same freeze, reached from a row's "⋯" menu instead of another dialog.
+ *
+ * Radix flushes the item's click handler before it closes the menu, so the
+ * dialog mounts while the menu is still an open modal layer — the moment where
+ * the two layers have to agree about what <body> looked like before either of
+ * them touched it.
+ */
+function MenuToDialogHandoff() {
+  const [editing, setEditing] = useState(false);
+  return (
+    <div>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button type="button">Actions</button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuItem onClick={() => setEditing(true)}>Edit</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {editing && (
+        <Dialog open onOpenChange={(o) => !o && setEditing(false)}>
+          <DialogContent aria-describedby={undefined}>
+            <DialogTitle>Edit product</DialogTitle>
+            <button type="button" onClick={() => setEditing(false)}>
+              Save
+            </button>
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  );
+}
+
+describe("opening a dialog from a dropdown menu", () => {
+  it("leaves the page clickable after the dialog closes", async () => {
+    render(<MenuToDialogHandoff />);
+    expect(document.body.style.pointerEvents).toBe("");
+
+    // Radix opens the menu on pointerdown or a key, not on a bare click.
+    fireEvent.keyDown(screen.getByText("Actions"), { key: "Enter" });
+    fireEvent.click(await screen.findByText("Edit"));
+    await screen.findByText("Save");
 
     fireEvent.click(screen.getByText("Save"));
 
