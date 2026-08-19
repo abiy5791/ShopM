@@ -157,7 +157,7 @@ export function ShiftDashboard({
                     <span className="min-w-0 truncate">
                       {s.customer_name ?? "Walk-in"}
                       <span className="ml-2 text-xs text-muted-foreground">
-                        {formatDateTime(s.created_at)}
+                        {formatDateTime(s.occurred_at)}
                       </span>
                     </span>
                     <span className="shrink-0 font-mono tabular-nums">

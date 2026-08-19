@@ -43,8 +43,8 @@ class CustomerViewSet(ShopScopedModelViewSet):
         balance = recompute_customer_balance(customer)
         sales = (
             Sale.objects.filter(customer=customer)
-            .order_by("-created_at")
-            .values("id", "total", "status", "created_at")[:100]
+            .order_by("-occurred_at")
+            .values("id", "total", "status", "occurred_at")[:100]
         )
         payments = (
             Payment.objects.filter(customer=customer)

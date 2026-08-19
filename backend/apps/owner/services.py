@@ -97,8 +97,8 @@ def compare_shops(user, *, start=None, end=None) -> dict:
         sales_qs = Sale.objects.filter(
             shop=shop,
             status=Sale.Status.COMPLETED,
-            created_at__gte=range_start,
-            created_at__lt=range_end,
+            occurred_at__gte=range_start,
+            occurred_at__lt=range_end,
         )
         revenue = sales_qs.aggregate(s=Sum("total"))["s"] or 0
         cogs = SaleItem.objects.filter(sale__in=sales_qs).aggregate(c=Sum(_LINE_COST))["c"] or 0

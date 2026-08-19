@@ -1,4 +1,4 @@
-import { Ban, Receipt } from "lucide-react";
+import { Ban, Pencil, Receipt } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -27,6 +27,7 @@ import type { Sale } from "@/types";
 
 import { useSales, useVoidSale } from "./api";
 import { SaleDetailDialog } from "./SaleDetailDialog";
+import { SaleEditDialog } from "./SaleEditDialog";
 
 export default function SalesPage() {
   const shop = useActiveShop();
@@ -37,6 +38,7 @@ export default function SalesPage() {
   const [page, setPage] = useState(1);
   const [voiding, setVoiding] = useState<Sale | null>(null);
   const [detail, setDetail] = useState<Sale | null>(null);
+  const [editing, setEditing] = useState<Sale | null>(null);
   const { data, isLoading, isError, refetch } = useSales(page);
   // Owners get the shop's takings here; a cashier gets the same four figures
   // for their own sales only (plan §8).
@@ -59,7 +61,10 @@ export default function SalesPage() {
     <div>
       <PageHeader
         title="Sales"
-        description="Completed sales for this shop. Select a sale for full details."
+        description={
+          "Completed sales for this shop, by the day each counts towards. " +
+          "Select a sale for full details."
+        }
       />
 
       <KpiRow summary={summary.data} loading={summary.isLoading} />
@@ -70,7 +75,7 @@ export default function SalesPage() {
         <Table>
           <TableHeader>
             <TableRow className="border-t-0">
-              <TableHead>Time</TableHead>
+              <TableHead>Sale date</TableHead>
               <TableHead>Cashier</TableHead>
               <TableHead>Customer</TableHead>
               <TableHead className="text-right">Items</TableHead>
@@ -105,7 +110,7 @@ export default function SalesPage() {
                   }}
                 >
                   <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
-                    {formatDateTime(sale.created_at)}
+                    {formatDateTime(sale.occurred_at)}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {sale.cashier_email ?? "—"}
@@ -120,25 +125,60 @@ export default function SalesPage() {
                     {formatMoney(sale.total, currency)}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={sale.status === "voided" ? "destructive" : "accent"}>
-                      {sale.status}
-                    </Badge>
+                    <div className="flex flex-wrap items-center gap-1">
+                      <Badge variant={sale.status === "voided" ? "destructive" : "accent"}>
+                        {sale.status}
+                      </Badge>
+                      {/* Entered on a later day than it counts towards. */}
+                      {sale.is_backdated && (
+                        <Badge
+                          variant="secondary"
+                          title={`Recorded ${formatDateTime(sale.created_at)}`}
+                        >
+                          backdated
+                        </Badge>
+                      )}
+                      {sale.is_amended && (
+                        <Badge
+                          variant="secondary"
+                          title={`Corrected ${formatDateTime(sale.amended_at!)}`}
+                        >
+                          corrected
+                        </Badge>
+                      )}
+                    </div>
                   </TableCell>
                   {isOwner && (
                     <TableCell>
                       {sale.status === "completed" && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setVoiding(sale);
-                          }}
-                          aria-label="Void sale"
-                        >
-                          <Ban className="h-3.5 w-3.5" />
-                        </Button>
+                        <div className="flex items-center gap-0.5">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditing(sale);
+                            }}
+                            aria-label="Correct sale"
+                            title="Correct a sale that was recorded wrong"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setVoiding(sale);
+                            }}
+                            aria-label="Void sale"
+                            title="Reverse a sale that never happened"
+                          >
+                            <Ban className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       )}
                     </TableCell>
                   )}
@@ -162,7 +202,7 @@ export default function SalesPage() {
                 <ListCard
                   onClick={() => setDetail(sale)}
                   title={sale.customer_name ?? "Walk-in"}
-                  subtitle={formatDateTime(sale.created_at)}
+                  subtitle={formatDateTime(sale.occurred_at)}
                   meta={
                     <>
                       <Fact label="Items">
@@ -171,6 +211,8 @@ export default function SalesPage() {
                       <Badge variant={sale.status === "voided" ? "destructive" : "accent"}>
                         {sale.status}
                       </Badge>
+                      {sale.is_backdated && <Badge variant="secondary">backdated</Badge>}
+                      {sale.is_amended && <Badge variant="secondary">corrected</Badge>}
                     </>
                   }
                   trailing={
@@ -180,18 +222,32 @@ export default function SalesPage() {
                   }
                   actions={
                     isOwner && sale.status === "completed" ? (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                        aria-label="Void sale"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setVoiding(sale);
-                        }}
-                      >
-                        <Ban className="h-3.5 w-3.5" />
-                      </Button>
+                      <div className="flex items-center gap-0.5">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                          aria-label="Correct sale"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditing(sale);
+                          }}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          aria-label="Void sale"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setVoiding(sale);
+                          }}
+                        >
+                          <Ban className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     ) : undefined
                   }
                 />
@@ -245,13 +301,20 @@ export default function SalesPage() {
         sale={detail}
         currency={currency}
         onOpenChange={(o) => !o && setDetail(null)}
+        onEdit={isOwner ? (s) => { setDetail(null); setEditing(s); } : undefined}
+      />
+
+      <SaleEditDialog
+        sale={editing}
+        currency={currency}
+        onOpenChange={(o) => !o && setEditing(null)}
       />
 
       <ConfirmDialog
         open={voiding !== null}
         onOpenChange={(o) => !o && setVoiding(null)}
         title={voiding ? `Void this ${formatMoney(voiding.total, currency)} sale?` : "Void sale?"}
-        description="The sale is marked voided and its stock is returned to inventory. This is recorded in the activity log."
+        description="Use this only when the sale never happened. It is marked voided, its stock returns to inventory, and it stops counting towards any day. To fix a sale that did happen but was recorded wrong, correct it instead."
         confirmLabel="Void sale"
         onConfirm={() => voiding && handleVoid(voiding)}
       />

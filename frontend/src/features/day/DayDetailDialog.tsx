@@ -104,7 +104,7 @@ export function DayDetailDialog({
                     >
                       <div className="min-w-0">
                         <span className="font-mono text-xs tabular-nums text-muted-foreground">
-                          {clock(row.created_at)}
+                          {clock(row.occurred_at)}
                         </span>
                         <p className="truncate text-sm">
                           {row.customer_name ?? "Walk-in"}

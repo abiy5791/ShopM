@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth";
-import type { Paginated, ReceiptData, Sale, SaleItem, SalePayment } from "@/types";
+import type { Paginated, ReceiptData, Sale, SaleEditPayload, SaleItem, SalePayment } from "@/types";
 
 export function useSales(page = 1) {
   const activeShopId = useAuthStore((s) => s.activeShopId);
@@ -10,7 +10,7 @@ export function useSales(page = 1) {
     queryKey: ["sales", activeShopId, page],
     enabled: Boolean(activeShopId),
     queryFn: async () =>
-      (await api.get<Paginated<Sale>>("/sales", { params: { page, ordering: "-created_at" } }))
+      (await api.get<Paginated<Sale>>("/sales", { params: { page, ordering: "-occurred_at" } }))
         .data,
   });
 }
@@ -39,6 +39,8 @@ interface ServerReceipt {
   change: number;
   items: SaleItem[];
   payments: SalePayment[];
+  occurred_at: string;
+  is_backdated: boolean;
   created_at: string;
 }
 
@@ -55,7 +57,9 @@ export function useSaleReceipt(saleId: string | null, enabled: boolean) {
         cashier_name: data.cashier_name,
         currency: data.currency,
         receipt_footer: data.receipt_footer,
-        created_at: data.created_at,
+        // A reprint shows the day the sale is booked to, not the day entered.
+        created_at: data.occurred_at,
+        is_backdated: data.is_backdated,
         items: data.items.map((i) => ({
           name: i.name_snapshot,
           quantity: i.quantity,
@@ -70,6 +74,28 @@ export function useSaleReceipt(saleId: string | null, enabled: boolean) {
         change: data.change,
         offline: false,
       };
+    },
+  });
+}
+
+/**
+ * Correct a mis-recorded sale. Owner-only server-side, and a reason is always
+ * required. The server recomputes the totals, moves stock by the net
+ * difference, and keeps the before/after in the sale's amendment history.
+ */
+export function useEditSale() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...payload }: SaleEditPayload & { id: string }) =>
+      (await api.patch<Sale>(`/sales/${id}`, payload)).data,
+    onSuccess: (sale) => {
+      // An edit can move money, stock, credit and the day it all lands on.
+      qc.invalidateQueries({ queryKey: ["sales"] });
+      qc.invalidateQueries({ queryKey: ["sale-receipt", sale.id] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+      qc.invalidateQueries({ queryKey: ["customers"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["day-book"] });
     },
   });
 }

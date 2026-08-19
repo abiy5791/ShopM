@@ -2,7 +2,7 @@ from django.conf import settings as django_settings
 from django.db import models
 
 from apps.common.models import BaseModel, SoftDeleteModel
-from apps.common.money import MoneyField
+from apps.common.money import MoneyField, currency_of, format_money
 
 from .validators import validate_receipt_image
 
@@ -69,4 +69,4 @@ class Expense(SoftDeleteModel):
         ]
 
     def __str__(self) -> str:
-        return f"{self.amount} on {self.date}"
+        return f"{format_money(self.amount, currency_of(self))} on {self.date}"

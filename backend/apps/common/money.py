@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
+from django import forms
+from django.conf import settings as django_settings
 from django.db import models
 
 # Minor-unit exponent per currency (how many decimal places the currency has).
@@ -76,8 +78,96 @@ def format_money(minor: int, currency: str, *, with_symbol: bool = True) -> str:
     return f"{text} {currency.upper()}"
 
 
+#: How to reach the owning Shop from a row that does not hold one directly.
+_SHOP_PATHS = ("shop", "sale.shop", "purchase.shop", "product.shop")
+
+
+def currency_of(obj) -> str:
+    """The currency a row's money is denominated in, resolved from its shop.
+
+    Currency is per shop (``ShopSettings.currency``), so it is looked up rather
+    than assumed — a shop on a zero-decimal currency must not gain two decimal
+    places it does not have.
+
+    Never raises. This is reached from ``__str__`` and from admin rendering, and
+    a label that blows up would take out whole admin pages and error messages
+    for the sake of a display detail; falling back to the site default is always
+    better than that.
+    """
+    default = getattr(django_settings, "DEFAULT_CURRENCY", "ETB")
+    if obj is None:
+        return default
+    try:
+        for path in _SHOP_PATHS:
+            target = obj
+            for part in path.split("."):
+                target = getattr(target, part, None)
+                if target is None:
+                    break
+            if target is not None:
+                shop_settings = getattr(target, "settings", None)
+                return shop_settings.currency if shop_settings is not None else default
+    except Exception:  # noqa: BLE001 - a label must never break the page
+        return default
+    return default
+
+
+class MoneyFormField(forms.DecimalField):
+    """Edits money in major units ("700.00") while the model stores minor ones.
+
+    Scope matters here. This is reached only through ``models.Field.formfield()``,
+    which is what **Django ModelForms** — in this project, the admin and nothing
+    else — use to build an input. The REST API is untouched: DRF maps a model
+    field to a serializer field by *class* and never calls ``formfield()``, so
+    the API keeps sending and receiving integer minor units exactly as before.
+
+    Without this, the admin would read "700.00" but save whatever integer was
+    typed, so a human correcting a price to 750.00 would store 750 minor units
+    (Br7.50). Displaying major units and accepting minor ones is a trap; the two
+    have to move together.
+    """
+
+    def __init__(self, *, currency: str | None = None, **kwargs):
+        kwargs.setdefault("max_digits", 20)
+        self.currency = currency or django_settings.DEFAULT_CURRENCY
+        kwargs.setdefault("decimal_places", exponent(self.currency))
+        kwargs.setdefault("help_text", "")
+        super().__init__(**kwargs)
+
+    def set_currency(self, currency: str) -> None:
+        """Re-target the field at a row's own currency (see MoneyAdminMixin).
+
+        The field is built before any row is known, so it starts on the site
+        default; a shop on a zero-decimal currency (JPY, UGX) needs the decimal
+        places corrected once the object is in hand.
+        """
+        self.currency = currency
+        self.decimal_places = exponent(currency)
+
+    def prepare_value(self, value):
+        # An unbound form hands over the stored integer, which becomes "700.00".
+        # A bound form that failed validation hands back the raw string the user
+        # typed, which must pass straight through or it would be divided twice.
+        if isinstance(value, bool) or not isinstance(value, int):
+            return value
+        return to_major(value, self.currency)
+
+    def clean(self, value):
+        amount = super().clean(value)
+        if amount is None:
+            return None
+        return to_minor(amount, self.currency)
+
+
 class MoneyField(models.BigIntegerField):
     """Stores money as integer minor units. A semantic alias for BigIntegerField
     so model definitions read clearly and we never accidentally use a float/decimal."""
 
     description = "Monetary value in integer minor units"
+
+    def formfield(self, **kwargs):
+        """Django forms (the admin) edit this in major units; see MoneyFormField.
+
+        DRF does not go through here, so the API contract is unchanged.
+        """
+        return super().formfield(**{"form_class": MoneyFormField, **kwargs})

@@ -1,4 +1,4 @@
-import { ArrowLeft, Loader2, Printer } from "lucide-react";
+import { ArrowLeft, Loader2, Pencil, Printer } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -40,10 +40,13 @@ export function SaleDetailDialog({
   sale,
   currency,
   onOpenChange,
+  onEdit,
 }: {
   sale: Sale | null;
   currency: string;
   onOpenChange: (open: boolean) => void;
+  /** Owner-only. Omitted for a cashier, who cannot correct a recorded sale. */
+  onEdit?: (sale: Sale) => void;
 }) {
   const [view, setView] = useState<"details" | "receipt">("details");
   const receipt = useSaleReceipt(sale?.id ?? null, view === "receipt");
@@ -94,6 +97,8 @@ export function SaleDetailDialog({
                 <Badge variant={sale.status === "voided" ? "destructive" : "accent"}>
                   {sale.status}
                 </Badge>
+                {sale.is_backdated && <Badge variant="secondary">backdated</Badge>}
+                {sale.is_amended && <Badge variant="secondary">corrected</Badge>}
               </DialogTitle>
             </DialogHeader>
 
@@ -101,9 +106,15 @@ export function SaleDetailDialog({
               {/* Who / when — one column on phones so long values (a cashier
                   email) have room to wrap; paired columns from sm up. */}
               <dl className="grid grid-cols-1 gap-x-4 gap-y-2.5 text-sm sm:grid-cols-2">
-                <Meta label="Date" value={formatDateTime(sale.created_at)} />
+                {/* The day the sale counts towards. When it was entered later
+                    (a missed day recorded afterwards) the entry date is shown
+                    too — the two together are the whole audit story. */}
+                <Meta label="Date" value={formatDateTime(sale.occurred_at)} />
                 <Meta label="Cashier" value={sale.cashier_email ?? "—"} />
                 <Meta label="Customer" value={sale.customer_name ?? "Walk-in"} />
+                {sale.is_backdated && (
+                  <Meta label="Recorded on" value={formatDateTime(sale.created_at)} />
+                )}
                 {sale.voided_at && <Meta label="Voided" value={formatDateTime(sale.voided_at)} />}
               </dl>
 
@@ -211,12 +222,50 @@ export function SaleDetailDialog({
                   <p className="text-sm text-muted-foreground">{sale.notes}</p>
                 </div>
               )}
+
+              {/* Correction history. The figures above are the sale as it stands
+                  now; this is every change made to get there, and why. */}
+              {sale.amendments.length > 0 && (
+                <div>
+                  <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Corrections
+                  </p>
+                  <ul className="space-y-2">
+                    {sale.amendments.map((a) => (
+                      <li key={a.id} className="rounded-md border px-3 py-2 text-sm">
+                        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                          <span className="font-medium">{a.reason}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {formatDateTime(a.created_at)}
+                            {a.user_name ? ` · ${a.user_name}` : ""}
+                          </span>
+                        </div>
+                        <ul className="mt-1.5 space-y-0.5">
+                          {a.changes.map((c, i) => (
+                            <li key={i} className="text-xs text-muted-foreground">
+                              <span className="font-medium text-foreground">{c.field}:</span>{" "}
+                              <span className="line-through">{c.from}</span>
+                              {" → "}
+                              <span className="text-foreground">{c.to}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
 
             <DialogFooter>
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Close
               </Button>
+              {onEdit && sale.status === "completed" && (
+                <Button variant="outline" onClick={() => onEdit(sale)}>
+                  <Pencil className="h-4 w-4" /> Correct
+                </Button>
+              )}
               <Button onClick={() => setView("receipt")}>
                 <Printer className="h-4 w-4" /> Print receipt
               </Button>

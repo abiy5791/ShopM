@@ -174,18 +174,18 @@ def sales_summary(shop, on_date: date | None = None, cashier=None) -> dict:
     month_start, month_end = _datetime_range(month_first, today)
 
     completed = _completed_sales(shop)
-    today_qs = completed.filter(created_at__gte=day_start, created_at__lt=day_end)
+    today_qs = completed.filter(occurred_at__gte=day_start, occurred_at__lt=day_end)
     today_agg = today_qs.aggregate(total=Sum("total"), count=Count("id"))
     today_total = today_agg["total"] or 0
     today_count = today_agg["count"] or 0
     yesterday_total = (
-        completed.filter(created_at__gte=prev_start, created_at__lt=prev_end).aggregate(
+        completed.filter(occurred_at__gte=prev_start, occurred_at__lt=prev_end).aggregate(
             s=Sum("total")
         )["s"]
         or 0
     )
 
-    month_qs = completed.filter(created_at__gte=month_start, created_at__lt=month_end)
+    month_qs = completed.filter(occurred_at__gte=month_start, occurred_at__lt=month_end)
     month_agg = month_qs.aggregate(total=Sum("total"), count=Count("id"))
     month_total = month_agg["total"] or 0
     month_count = month_agg["count"] or 0
@@ -242,19 +242,19 @@ def _own_sales_summary(shop, cashier, on_date: date | None = None) -> dict:
     week_start, _ = _datetime_range(today - timedelta(days=6), today)
 
     mine = _completed_sales(shop).filter(cashier=cashier)
-    today_qs = mine.filter(created_at__gte=day_start, created_at__lt=day_end)
+    today_qs = mine.filter(occurred_at__gte=day_start, occurred_at__lt=day_end)
     agg = today_qs.aggregate(total=Sum("total"), count=Count("id"))
     total = agg["total"] or 0
     count = agg["count"] or 0
     yesterday_total = (
-        mine.filter(created_at__gte=prev_start, created_at__lt=prev_end).aggregate(s=Sum("total"))[
-            "s"
-        ]
+        mine.filter(occurred_at__gte=prev_start, occurred_at__lt=prev_end).aggregate(
+            s=Sum("total")
+        )["s"]
         or 0
     )
     items = SaleItem.objects.filter(sale__in=today_qs).aggregate(q=Sum("quantity"))["q"] or 0
 
-    week_qs = mine.filter(created_at__gte=week_start, created_at__lt=day_end)
+    week_qs = mine.filter(occurred_at__gte=week_start, occurred_at__lt=day_end)
     week_agg = week_qs.aggregate(total=Sum("total"), count=Count("id"))
 
     return _summary(

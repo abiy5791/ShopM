@@ -171,6 +171,69 @@ export interface SalePayload {
   tax: number;
   notes?: string;
   customer?: string;
+  /**
+   * The day the sale happened, "YYYY-MM-DD", when that isn't today — an owner
+   * recording a day that was missed. Owner-only and bounded by the server
+   * (GET /sales/date-window); omit it for a normal sale.
+   */
+  sale_date?: string;
+}
+
+/** One recorded correction to a sale. Append-only — amendments never change. */
+export interface SaleAmendment {
+  id: string;
+  reason: string;
+  changes: { field: string; from: string; to: string }[];
+  before: SaleSnapshot;
+  after: SaleSnapshot;
+  user_email: string | null;
+  user_name: string | null;
+  created_at: string;
+}
+
+/** The state of a sale either side of a correction, kept for the audit trail. */
+export interface SaleSnapshot {
+  occurred_at: string;
+  subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
+  notes: string;
+  customer_id: string | null;
+  customer_name: string | null;
+  items: {
+    product_id: string;
+    name: string;
+    sku: string;
+    quantity: number;
+    unit_price: number;
+    line_total: number;
+  }[];
+  payments: { method: PaymentMethod; amount: number }[];
+}
+
+/**
+ * An owner's correction to a mis-recorded sale (PATCH /sales/{id}). Only the
+ * fields sent are changed; `reason` is always required, and sending `items` or
+ * `payments` replaces that whole list.
+ */
+export interface SaleEditPayload {
+  reason: string;
+  items?: SaleItemInput[];
+  payments?: PaymentInput[];
+  customer?: string | null;
+  discount?: number;
+  tax?: number;
+  notes?: string;
+  sale_date?: string;
+}
+
+/** The window a sale may be dated to, and whether this member may use it. */
+export interface SaleDateWindow {
+  earliest: string;
+  latest: string;
+  max_days: number;
+  allowed: boolean;
 }
 
 export interface SaleItem {
@@ -208,6 +271,16 @@ export interface Sale {
   items: SaleItem[];
   payments: SalePayment[];
   voided_at: string | null;
+  /** When the sale happened — the day it counts towards in every report. */
+  occurred_at: string;
+  /** True when it was entered on a later day than it is booked to. */
+  is_backdated: boolean;
+  /** When the sale was last corrected, or null if it never has been. */
+  amended_at: string | null;
+  is_amended: boolean;
+  /** Correction history, newest first. Empty for almost every sale. */
+  amendments: SaleAmendment[];
+  /** When the row was entered. Differs from occurred_at only for a backdate. */
   created_at: string;
 }
 
@@ -230,6 +303,8 @@ export interface ReceiptData {
   amount_paid: number;
   change: number;
   offline: boolean;
+  /** Set when the sale is booked to an earlier day than it was entered. */
+  is_backdated?: boolean;
 }
 
 export type PaymentStatus = "paid" | "partial" | "unpaid";
@@ -290,7 +365,7 @@ export interface Customer {
 export interface CustomerLedger {
   customer_id: string;
   balance: number;
-  sales: { id: string; total: number; status: string; created_at: string }[];
+  sales: { id: string; total: number; status: string; occurred_at: string }[];
   payments: {
     id: string;
     method: PaymentMethod;
@@ -315,7 +390,7 @@ export interface DashboardData {
   total_products: number;
   cash_balance: number;
   best_sellers: { name: string; quantity: number }[];
-  recent_sales: { id: string; total: number; created_at: string }[];
+  recent_sales: { id: string; total: number; occurred_at: string }[];
 }
 
 /** A cashier's own day (GET /shift): their till, plus counter-side shelf facts.
@@ -335,7 +410,7 @@ export interface ShiftData {
   top_products: { name: string; quantity: number }[];
   recent_sales: {
     id: string;
-    created_at: string;
+    occurred_at: string;
     total: number;
     item_count: number;
     customer_name: string | null;
@@ -370,7 +445,7 @@ export interface DayBookData {
   top_products: { name: string; quantity: number; revenue: number }[];
   sales: {
     id: string;
-    created_at: string;
+    occurred_at: string;
     total: number;
     item_count: number;
     cashier_name: string;

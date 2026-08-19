@@ -18,7 +18,7 @@ def push_daily_summaries() -> int:
     for shop in Shop.objects.filter(deleted_at__isnull=True):
         total = (
             Sale.objects.filter(
-                shop=shop, status=Sale.Status.COMPLETED, created_at__date=yesterday
+                shop=shop, status=Sale.Status.COMPLETED, occurred_at__date=yesterday
             ).aggregate(s=Sum("total"))["s"]
             or 0
         )

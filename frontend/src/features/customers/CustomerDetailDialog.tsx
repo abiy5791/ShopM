@@ -96,7 +96,7 @@ export function CustomerDetailDialog({
               data.sales.map((s) => (
                 <Row
                   key={s.id}
-                  left={formatEthiopian(s.created_at)}
+                  left={formatEthiopian(s.occurred_at)}
                   right={formatMoney(s.total, currency)}
                   badge={s.status === "voided" ? "voided" : undefined}
                 />

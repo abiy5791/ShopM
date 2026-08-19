@@ -13,6 +13,12 @@ export function Receipt({ data }: { data: ReceiptData }) {
         {data.shop_address && <p className="text-muted-foreground">{data.shop_address}</p>}
         <p className="mt-1 text-muted-foreground">{formatEthiopianDateTime(data.created_at)}</p>
         <p className="text-muted-foreground">Served by {data.cashier_name}</p>
+        {/* The date above is the day the sale is booked to. Say so outright when
+            that is not today, so a reprinted catch-up receipt is never mistaken
+            for a same-day one. */}
+        {data.is_backdated && (
+          <p className="mt-1 font-semibold uppercase">Recorded later for this date</p>
+        )}
         {data.offline && (
           <p className="mt-1 font-semibold text-destructive">OFFLINE — pending sync</p>
         )}

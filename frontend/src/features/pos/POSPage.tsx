@@ -2,6 +2,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
+  CalendarClock,
   Minus,
   Plus,
   ScanLine,
@@ -14,6 +15,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { EthiopianDatePicker } from "@/components/ethiopian-date-picker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -35,11 +37,19 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCustomers } from "@/features/customers/api";
 import { useAuthStore } from "@/lib/auth";
+import { formatEthiopian } from "@/lib/ethiopian";
 import { formatMoney, parseMoney } from "@/lib/money";
-import { cn } from "@/lib/utils";
-import type { PaymentInput, ReceiptData, SalePayload } from "@/types";
+import { cn, todayIso } from "@/lib/utils";
+import type { PaymentInput, ReceiptData, SaleDateWindow, SalePayload } from "@/types";
 
-import { checkout, stockShortages, usePendingSync, usePosCatalog, useActiveShop } from "./api";
+import {
+  checkout,
+  stockShortages,
+  usePendingSync,
+  usePosCatalog,
+  useActiveShop,
+  useSaleDateWindow,
+} from "./api";
 import {
   type AddResult,
   type CartLine,
@@ -80,6 +90,15 @@ export default function POSPage() {
 
   const customers = useCustomers();
   const [customerId, setCustomerId] = useState("none");
+
+  // The day this sale is booked to. "" means today — the normal case — so a
+  // backdate is always a deliberate, visible choice. The server owns the rule
+  // for which dates are offerable and re-checks whatever we send.
+  const dateWindow = useSaleDateWindow();
+  const [saleDate, setSaleDate] = useState("");
+  useEffect(() => {
+    setSaleDate("");
+  }, [shopId]);
 
   const [query, setQuery] = useState("");
   const [hideOutOfStock, setHideOutOfStock] = useState(false);
@@ -139,6 +158,7 @@ export default function POSPage() {
   async function handleConfirm(payments: PaymentInput[]) {
     if (!shopId || !shop || !user) return;
     setSubmitting(true);
+    const backdated = Boolean(saleDate) && saleDate !== todayIso();
     const payload: SalePayload = {
       client_uuid: crypto.randomUUID(),
       items: cart.lines.map((l) => ({
@@ -150,6 +170,7 @@ export default function POSPage() {
       discount,
       tax,
       ...(customerId !== "none" ? { customer: customerId } : {}),
+      ...(saleDate ? { sale_date: saleDate } : {}),
     };
     const amountPaid = payments.reduce((s, p) => s + p.amount, 0);
     const localReceipt: ReceiptData = {
@@ -157,7 +178,11 @@ export default function POSPage() {
       shop_address: shop.address,
       cashier_name: user.full_name,
       currency,
-      created_at: new Date().toISOString(),
+      // A backdated sale prints the day it is booked to, not the day printed.
+      created_at: backdated
+        ? new Date(`${saleDate}T00:00:00`).toISOString()
+        : new Date().toISOString(),
+      is_backdated: backdated,
       items: cart.lines.map((l) => ({
         name: l.name,
         quantity: l.quantity,
@@ -184,6 +209,8 @@ export default function POSPage() {
       cart.clear();
       setDiscountInput("");
       setCustomerId("none");
+      // Never let a backdate leak into the next sale — it is per-sale, always.
+      setSaleDate("");
       if (result.synced) {
         // Server state moved: the sale, the stock it consumed, and any credit
         // it added. Without this the cached lists and KPI rows (shift dashboard,
@@ -194,7 +221,12 @@ export default function POSPage() {
       } else {
         await refreshPendingSync(); // reflect the new queued sale immediately
       }
-      toast.success(result.synced ? "Sale completed" : "Saved offline — will sync when online");
+      const where = backdated ? ` on ${formatEthiopian(saleDate)}` : "";
+      toast.success(
+        result.synced
+          ? `Sale recorded${where}`
+          : `Saved offline${where} — will sync when online`,
+      );
     } catch (err) {
       const short = stockShortages(err);
       if (short) {
@@ -344,6 +376,9 @@ export default function POSPage() {
           customers={customers.data?.results ?? []}
           customerId={customerId}
           setCustomerId={setCustomerId}
+          dateWindow={dateWindow}
+          saleDate={saleDate}
+          setSaleDate={setSaleDate}
           discountInput={discountInput}
           setDiscountInput={setDiscountInput}
           discount={discount}
@@ -391,6 +426,9 @@ export default function POSPage() {
               customers={customers.data?.results ?? []}
               customerId={customerId}
               setCustomerId={setCustomerId}
+              dateWindow={dateWindow}
+              saleDate={saleDate}
+              setSaleDate={setSaleDate}
               discountInput={discountInput}
               setDiscountInput={setDiscountInput}
               discount={discount}
@@ -454,6 +492,9 @@ function SaleCart({
   customers,
   customerId,
   setCustomerId,
+  dateWindow,
+  saleDate,
+  setSaleDate,
   discountInput,
   setDiscountInput,
   discount,
@@ -470,6 +511,11 @@ function SaleCart({
   customers: { id: string; name: string }[];
   customerId: string;
   setCustomerId: (value: string) => void;
+  /** Null until loaded; `allowed` is false for anyone but the owner. */
+  dateWindow: SaleDateWindow | null;
+  /** Gregorian ISO, "" = today (the normal case). */
+  saleDate: string;
+  setSaleDate: (iso: string) => void;
   discountInput: string;
   setDiscountInput: (value: string) => void;
   discount: number;
@@ -480,6 +526,7 @@ function SaleCart({
   onCharge: () => void;
   onClose?: () => void;
 }) {
+  const backdatedDate = Boolean(saleDate) && saleDate !== todayIso();
   return (
     <>
       <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
@@ -525,6 +572,39 @@ function SaleCart({
       </div>
 
       <div className="space-y-3 border-t px-4 py-3">
+        {/* Recording a day that was missed. Owner-only, and only ever a
+            deliberate choice: empty means today, which is what it resets to
+            after every sale. The server re-checks whatever date it is sent. */}
+        {dateWindow?.allowed && (
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <span className="w-20 shrink-0 text-xs">Sale date</span>
+              <EthiopianDatePicker
+                className="flex-1"
+                value={saleDate}
+                onChange={setSaleDate}
+                min={dateWindow.earliest}
+                max={dateWindow.latest}
+                placeholder="Today"
+                ariaLabel="Date this sale happened"
+                clearable
+              />
+            </div>
+            {backdatedDate && (
+              <p
+                role="status"
+                className="flex items-start gap-1.5 rounded-md bg-amber-500/10 px-2 py-1.5 text-xs text-amber-700 dark:text-amber-500"
+              >
+                <CalendarClock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>
+                  Recording this on <strong>{formatEthiopian(saleDate)}</strong>, not today. It
+                  counts towards that day&apos;s takings; stock leaves now.
+                </span>
+              </p>
+            )}
+          </div>
+        )}
+
         <label className="flex items-center gap-2">
           <span className="w-20 text-xs">Discount</span>
           <Input

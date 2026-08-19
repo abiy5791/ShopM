@@ -24,7 +24,6 @@ from apps.customers.models import Customer
 from apps.expenses.models import Expense, ExpenseCategory
 from apps.inventory.models import InventoryTransaction
 from apps.inventory.services import record_transaction
-from apps.sales.models import Payment
 from apps.sales.services import create_sale
 from apps.shops.models import Shop, ShopMembership, ShopSettings
 
@@ -257,19 +256,18 @@ class Command(BaseCommand):
 
             # Deterministic UUID -> re-running seed replays the same sale (no dupes).
             client_uuid = uuid.uuid5(uuid.NAMESPACE_URL, f"{shop.id}:sale:{index}")
-            sale, created = create_sale(
+            # Spread history across the month so reports/charts aren't flat. The
+            # business date is a first-class field, so this is just the normal
+            # checkout path — no post-hoc rewriting of timestamps.
+            create_sale(
                 shop=shop,
                 cashier=cashier,
                 client_uuid=client_uuid,
                 items=items,
                 payments=payments,
                 customer=customer,
+                occurred_at=timezone.now() - timedelta(days=days_ago) if days_ago else None,
             )
-            # Spread history across the month so reports/charts aren't flat.
-            if created and days_ago:
-                when = timezone.now() - timedelta(days=days_ago)
-                sale.__class__.objects.filter(pk=sale.pk).update(created_at=when)
-                Payment.objects.filter(sale=sale).update(received_at=when)
 
     def _seed_expenses(self, shop, owner) -> None:
         for cat_name, amount, days_ago, description in DEMO_EXPENSES:

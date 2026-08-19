@@ -32,8 +32,12 @@ _LINE_COST = ExpressionWrapper(
 def _datetime_range(start: date, end: date) -> tuple[datetime, datetime]:
     """Half-open [start, end] datetime bounds for filtering a DateTimeField by
     calendar date. Using gte/lt on the raw column (rather than `__date=`/
-    `__date__gte`) lets Postgres use the plain (shop, -created_at) index instead
-    of computing `created_at::date` per row."""
+    `__date__gte`) lets Postgres use the plain (shop, -occurred_at) index instead
+    of computing `occurred_at::date` per row.
+
+    Sales are filtered on ``occurred_at`` — the day the sale HAPPENED — not on
+    ``created_at``, so a sale an owner recorded late still counts towards the day
+    it belongs to (apps.sales.backdating)."""
     tz = timezone.get_current_timezone()
     start_dt = timezone.make_aware(datetime.combine(start, time.min), tz)
     end_dt = timezone.make_aware(datetime.combine(end, time.min), tz) + timedelta(days=1)
@@ -120,10 +124,10 @@ def day_book(shop, on_date: date | None = None) -> dict:
 
     sales_qs = (
         _completed_sales(shop)
-        .filter(created_at__gte=day_start, created_at__lt=day_end)
+        .filter(occurred_at__gte=day_start, occurred_at__lt=day_end)
         .select_related("cashier", "customer")
         .annotate(item_count=Count("items"))
-        .order_by("created_at")
+        .order_by("occurred_at")
     )
     agg = sales_qs.aggregate(
         total=Sum("total"),
@@ -184,7 +188,7 @@ def day_book(shop, on_date: date | None = None) -> dict:
     sales = [
         {
             "id": str(s.id),
-            "created_at": s.created_at.isoformat(),
+            "occurred_at": s.occurred_at.isoformat(),
             "total": s.total,
             "item_count": s.item_count,
             "cashier_name": s.cashier.full_name if s.cashier else "",
@@ -247,7 +251,9 @@ def day_book(shop, on_date: date | None = None) -> dict:
 def dashboard(shop, on_date: date | None = None) -> dict:
     today = on_date or timezone.now().date()
     day_start, day_end = _datetime_range(today, today)
-    todays_sales = _completed_sales(shop).filter(created_at__gte=day_start, created_at__lt=day_end)
+    todays_sales = _completed_sales(shop).filter(
+        occurred_at__gte=day_start, occurred_at__lt=day_end
+    )
     agg = todays_sales.aggregate(
         total=Sum("total"), subtotal=Sum("subtotal"), discount=Sum("discount")
     )
@@ -276,14 +282,14 @@ def dashboard(shop, on_date: date | None = None) -> dict:
         SaleItem.objects.filter(
             sale__shop=shop,
             sale__status=Sale.Status.COMPLETED,
-            sale__created_at__gte=month_start,
+            sale__occurred_at__gte=month_start,
         )
         .values("name_snapshot")
         .annotate(quantity=Sum("quantity"))
         .order_by("-quantity")[:5]
     )
     recent_sales = list(
-        _completed_sales(shop).order_by("-created_at").values("id", "total", "created_at")[:10]
+        _completed_sales(shop).order_by("-occurred_at").values("id", "total", "occurred_at")[:10]
     )
 
     # Sales totals for the 7 days ending on `today` (sparkline, v2 plan §4).
@@ -291,8 +297,8 @@ def dashboard(shop, on_date: date | None = None) -> dict:
     ws, we = _datetime_range(week_start, today)
     weekly = (
         _completed_sales(shop)
-        .filter(created_at__gte=ws, created_at__lt=we)
-        .annotate(bucket=TruncDate("created_at"))
+        .filter(occurred_at__gte=ws, occurred_at__lt=we)
+        .annotate(bucket=TruncDate("occurred_at"))
         .values("bucket")
         .annotate(total=Sum("total"))
     )
@@ -325,7 +331,7 @@ def dashboard(shop, on_date: date | None = None) -> dict:
             {"name": b["name_snapshot"], "quantity": b["quantity"]} for b in best_sellers
         ],
         "recent_sales": [
-            {"id": str(s["id"]), "total": s["total"], "created_at": s["created_at"].isoformat()}
+            {"id": str(s["id"]), "total": s["total"], "occurred_at": s["occurred_at"].isoformat()}
             for s in recent_sales
         ],
     }
@@ -346,15 +352,15 @@ def shift(shop, user, on_date: date | None = None) -> dict:
     prev_start, prev_end = _datetime_range(day - timedelta(days=1), day - timedelta(days=1))
 
     mine = _completed_sales(shop).filter(cashier=user)
-    today_qs = mine.filter(created_at__gte=day_start, created_at__lt=day_end)
+    today_qs = mine.filter(occurred_at__gte=day_start, occurred_at__lt=day_end)
     agg = today_qs.aggregate(total=Sum("total"), count=Count("id"))
     sales_total = agg["total"] or 0
     sales_count = agg["count"] or 0
     items_sold = SaleItem.objects.filter(sale__in=today_qs).aggregate(q=Sum("quantity"))["q"] or 0
     yesterday_total = (
-        mine.filter(created_at__gte=prev_start, created_at__lt=prev_end).aggregate(s=Sum("total"))[
-            "s"
-        ]
+        mine.filter(occurred_at__gte=prev_start, occurred_at__lt=prev_end).aggregate(
+            s=Sum("total")
+        )["s"]
         or 0
     )
 
@@ -363,8 +369,8 @@ def shift(shop, user, on_date: date | None = None) -> dict:
     week_start_day = day - timedelta(days=6)
     ws, we = _datetime_range(week_start_day, day)
     weekly = (
-        mine.filter(created_at__gte=ws, created_at__lt=we)
-        .annotate(bucket=TruncDate("created_at"))
+        mine.filter(occurred_at__gte=ws, occurred_at__lt=we)
+        .annotate(bucket=TruncDate("occurred_at"))
         .values("bucket")
         .annotate(total=Sum("total"), count=Count("id"))
     )
@@ -386,14 +392,14 @@ def shift(shop, user, on_date: date | None = None) -> dict:
     recent_sales = [
         {
             "id": str(s.id),
-            "created_at": s.created_at.isoformat(),
+            "occurred_at": s.occurred_at.isoformat(),
             "total": s.total,
             "item_count": s.item_count,
             "customer_name": s.customer.name if s.customer else None,
         }
         for s in today_qs.select_related("customer")
         .annotate(item_count=Count("items"))
-        .order_by("-created_at")[:8]
+        .order_by("-occurred_at")[:8]
     ]
 
     # Shelf intelligence: what to warn a customer about before promising it.
@@ -477,14 +483,14 @@ def _ethiopian_bucket(day: date, period: str) -> tuple[str, str, str]:
 def sales_report(shop, *, period="daily", start=None, end=None) -> dict:
     start, end = _default_range(start, end)
     range_start, range_end = _datetime_range(start, end)
-    qs = _completed_sales(shop).filter(created_at__gte=range_start, created_at__lt=range_end)
+    qs = _completed_sales(shop).filter(occurred_at__gte=range_start, occurred_at__lt=range_end)
 
     # Per-day totals, then folded into Ethiopian-calendar buckets in Python —
     # Ethiopian months (Meskerem…Pagumē, 30 days) and years don't line up with
     # Gregorian TruncMonth/Year, so grouping happens here, not in SQL.
     daily_map = {
         _as_date(g["bucket"]): (g["count"], g["total"] or 0)
-        for g in qs.annotate(bucket=TruncDate("created_at"))
+        for g in qs.annotate(bucket=TruncDate("occurred_at"))
         .values("bucket")
         .annotate(count=Count("id"), total=Sum("total"))
     }
@@ -597,7 +603,7 @@ def inventory_report(shop) -> dict:
         for g in SaleItem.objects.filter(
             sale__shop=shop,
             sale__status=Sale.Status.COMPLETED,
-            sale__created_at__gte=since_dt,
+            sale__occurred_at__gte=since_dt,
         )
         .values("name_snapshot")
         .annotate(quantity=Sum("quantity"))
@@ -637,7 +643,7 @@ def inventory_report(shop) -> dict:
 def profit_report(shop, *, start=None, end=None) -> dict:
     start, end = _default_range(start, end)
     range_start, range_end = _datetime_range(start, end)
-    qs = _completed_sales(shop).filter(created_at__gte=range_start, created_at__lt=range_end)
+    qs = _completed_sales(shop).filter(occurred_at__gte=range_start, occurred_at__lt=range_end)
     agg = qs.aggregate(subtotal=Sum("subtotal"), discount=Sum("discount"), tax=Sum("tax"))
     # Revenue is the shop's own income — tax collected is remitted to the state,
     # so it is excluded from revenue, gross profit, and margin.
@@ -657,14 +663,14 @@ def profit_report(shop, *, start=None, end=None) -> dict:
     # show quiet days. Capped at ~a year of points.
     daily_revenue = {
         g["bucket"]: g["s"] or 0
-        for g in qs.annotate(bucket=TruncDate("created_at"))
+        for g in qs.annotate(bucket=TruncDate("occurred_at"))
         .values("bucket")
         .annotate(s=Sum("subtotal") - Sum("discount"))
     }
     daily_cogs = {
         g["bucket"]: g["s"] or 0
         for g in SaleItem.objects.filter(sale__in=qs)
-        .annotate(bucket=TruncDate("sale__created_at"))
+        .annotate(bucket=TruncDate("sale__occurred_at"))
         .values("bucket")
         .annotate(s=Sum(_LINE_COST))
     }

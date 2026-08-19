@@ -136,7 +136,7 @@ export default function MyDayPage() {
     const margin = s.net_sales > 0 ? Math.round((s.gross_profit / s.net_sales) * 100) : 0;
     const byHour = new Map<number, number>();
     for (const sale of data.sales) {
-      const h = new Date(sale.created_at).getHours();
+      const h = new Date(sale.occurred_at).getHours();
       byHour.set(h, (byHour.get(h) ?? 0) + 1);
     }
     let busiest = -1;
@@ -451,7 +451,7 @@ export default function MyDayPage() {
                       >
                         <div className="min-w-0">
                           <span className="font-mono text-xs tabular-nums text-muted-foreground">
-                            {clock(row.created_at)}
+                            {clock(row.occurred_at)}
                           </span>
                           <p className="truncate text-sm">
                             {row.customer_name ?? "Walk-in"}

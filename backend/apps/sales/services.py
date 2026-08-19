@@ -67,9 +67,22 @@ def _check_stock(items) -> dict:
 
 
 def _build_sale(
-    *, shop, cashier, client_uuid, items, payments, discount, tax, notes, customer=None
+    *,
+    shop,
+    cashier,
+    client_uuid,
+    items,
+    payments,
+    discount,
+    tax,
+    notes,
+    customer=None,
+    occurred_at=None,
 ) -> Sale:
     locked_products = _check_stock(items)
+    # The business instant the sale is booked to. Defaults to now; an owner
+    # recording a missed day passes an earlier one (apps.sales.backdating).
+    occurred_at = occurred_at or timezone.now()
 
     subtotal = 0
     line_rows = []
@@ -103,6 +116,7 @@ def _build_sale(
         tax=tax,
         total=total,
         notes=notes,
+        occurred_at=occurred_at,
     )
 
     SaleItem.objects.bulk_create(
@@ -129,14 +143,24 @@ def _build_sale(
                 method=p["method"],
                 amount=p["amount"],
                 user=cashier,
+                # Money for a backdated sale came in on that day, not today, or
+                # the day's takings would not reconcile with the day's sales.
+                received_at=occurred_at,
             )
             for p in payments
         ]
     )
 
     # Decrement stock through the ledger (one row per line), then check low stock.
+    # Stock is NOT backdated — the ledger is an append-only record of when the
+    # system learned units were gone. The note says which day they left.
     from apps.notifications.services import notify_low_stock
 
+    ledger_note = (
+        f"Sale backdated to {timezone.localdate(occurred_at).isoformat()}"
+        if sale.is_backdated
+        else ""
+    )
     for product, quantity, _unit_price, _lt in line_rows:
         try:
             record_transaction(
@@ -146,6 +170,7 @@ def _build_sale(
                 user=cashier,
                 reference_type="sale",
                 reference_id=str(sale.id),
+                notes=ledger_note,
             )
         except NegativeStockError as exc:
             # Backstop for backends without row locks (SQLite): a racing sale
@@ -166,10 +191,24 @@ def _build_sale(
 
 
 def create_sale(
-    *, shop, cashier, client_uuid, items, payments, discount=0, tax=0, notes="", customer=None
+    *,
+    shop,
+    cashier,
+    client_uuid,
+    items,
+    payments,
+    discount=0,
+    tax=0,
+    notes="",
+    customer=None,
+    occurred_at=None,
 ) -> tuple[Sale, bool]:
     """Idempotent checkout. Returns (sale, created). A replay of the same
-    ``client_uuid`` returns the original sale with created=False (plan §3.4)."""
+    ``client_uuid`` returns the original sale with created=False (plan §3.4).
+
+    ``occurred_at`` books the sale to a business instant other than now. The
+    caller is responsible for having authorised and range-checked it — see
+    ``apps.sales.backdating`` and the owner-only gate in the viewset."""
     existing = Sale.objects.filter(client_uuid=client_uuid).first()
     if existing is not None:
         return existing, False
@@ -186,6 +225,7 @@ def create_sale(
                 tax=tax,
                 notes=notes,
                 customer=customer,
+                occurred_at=occurred_at,
             )
             if customer is not None:
                 from apps.customers.services import recompute_customer_balance

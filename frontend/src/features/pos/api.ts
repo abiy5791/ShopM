@@ -14,7 +14,15 @@ import {
   type OutboxEntry,
   removeFromOutbox,
 } from "@/lib/offline";
-import type { Paginated, Product, ReceiptData, Sale, SalePayload, Shop } from "@/types";
+import type {
+  Paginated,
+  Product,
+  ReceiptData,
+  Sale,
+  SaleDateWindow,
+  SalePayload,
+  Shop,
+} from "@/types";
 
 /** A network error (no response) means we're offline — distinct from a 4xx/5xx. */
 export function isNetworkError(err: unknown): boolean {
@@ -80,6 +88,24 @@ export function usePosCatalog() {
   return { products, offline: !query.data && cached.length > 0, isLoading: query.isLoading };
 }
 
+/**
+ * The window a sale may be dated to, and whether this member may use it.
+ * The rule lives on the server; the POS only mirrors it, so the picker can
+ * never offer a date the API would reject.
+ */
+export function useSaleDateWindow(): SaleDateWindow | null {
+  const shopId = useAuthStore((s) => s.activeShopId);
+  const { data } = useQuery({
+    queryKey: ["sale-date-window", shopId],
+    enabled: Boolean(shopId),
+    // The window rolls at midnight; an hour is fine and one fetch per session.
+    staleTime: 60 * 60 * 1000,
+    retry: false,
+    queryFn: async () => (await api.get<SaleDateWindow>("/sales/date-window")).data,
+  });
+  return data ?? null;
+}
+
 /** The active shop's record (name, currency, tax rate) — readable by any member. */
 export function useActiveShop(): Shop | null {
   const shopId = useAuthStore((s) => s.activeShopId);
@@ -96,7 +122,10 @@ function mapServerSaleToReceipt(sale: Sale, shopName: string, cashier: string): 
     shop_name: shopName,
     cashier_name: cashier,
     currency: "",
-    created_at: sale.created_at,
+    // The receipt shows the day the sale is booked to, which for a backdated
+    // catch-up sale is not the day it was printed.
+    created_at: sale.occurred_at,
+    is_backdated: sale.is_backdated,
     items: sale.items.map((i) => ({
       name: i.name_snapshot,
       quantity: i.quantity,

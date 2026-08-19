@@ -1,5 +1,7 @@
 from django.contrib import admin
 
+from apps.common.admin import MoneyAdminMixin, money_column
+
 from .models import Category, Product, Supplier
 
 
@@ -18,8 +20,13 @@ class SupplierAdmin(admin.ModelAdmin):
 
 
 @admin.register(Product)
-class ProductAdmin(admin.ModelAdmin):
-    list_display = ["name", "sku", "shop", "selling_price", "stock_cached", "status", "deleted_at"]
+class ProductAdmin(MoneyAdminMixin, admin.ModelAdmin):
+    # Prices are stored as integer minor units; these render them as money and
+    # still sort on the raw column.
+    cost = money_column("purchase_price", "Cost")
+    price = money_column("selling_price", "Selling price")
+
+    list_display = ["name", "sku", "shop", "cost", "price", "stock_cached", "status", "deleted_at"]
     search_fields = ["name", "sku", "barcode"]
     list_filter = ["status"]
     list_select_related = ["shop", "category"]
@@ -28,7 +35,11 @@ class ProductAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         # Show soft-deleted products too, so `deleted_at` is meaningful and a
         # delete can be undone from here.
-        return Product.all_objects.get_queryset().select_related("shop", "category")
+        # `shop__settings` carries the currency each price is rendered in —
+        # selected here so the list page stays one query, not one per row.
+        return Product.all_objects.get_queryset().select_related(
+            "shop", "shop__settings", "category"
+        )
 
     def get_deleted_objects(self, objs, request):
         # Product is a SoftDeleteModel: deleting only stamps `deleted_at`, so

@@ -1,5 +1,7 @@
 from django.contrib import admin
 
+from apps.common.admin import MoneyAdminMixin, money_column
+
 from .models import Expense, ExpenseCategory
 
 
@@ -10,8 +12,10 @@ class ExpenseCategoryAdmin(admin.ModelAdmin):
 
 
 @admin.register(Expense)
-class ExpenseAdmin(admin.ModelAdmin):
-    list_display = ["date", "category", "amount", "shop", "deleted_at"]
+class ExpenseAdmin(MoneyAdminMixin, admin.ModelAdmin):
+    spent = money_column("amount", "Amount")
+
+    list_display = ["date", "category", "spent", "shop", "deleted_at"]
     list_filter = ["category"]
     search_fields = ["description"]
-    list_select_related = ["shop", "category"]
+    list_select_related = ["shop", "shop__settings", "category"]

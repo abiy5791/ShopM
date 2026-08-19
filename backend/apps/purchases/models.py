@@ -2,7 +2,7 @@ from django.conf import settings as django_settings
 from django.db import models
 
 from apps.common.models import BaseModel
-from apps.common.money import MoneyField
+from apps.common.money import MoneyField, currency_of, format_money
 
 
 class Purchase(BaseModel):
@@ -59,4 +59,7 @@ class PurchaseItem(BaseModel):
         ordering = ["created_at"]
 
     def __str__(self) -> str:
-        return f"{self.quantity} x {self.product_id} @ {self.unit_cost}"
+        return (
+            f"{self.quantity} x {self.product_id} @ "
+            f"{format_money(self.unit_cost, currency_of(self))}"
+        )

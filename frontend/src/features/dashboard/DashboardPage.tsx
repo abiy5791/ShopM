@@ -182,7 +182,7 @@ export default function DashboardPage() {
               <ul className="space-y-1.5">
                 {data.recent_sales.map((s) => (
                   <li key={s.id} className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">{formatDateTime(s.created_at)}</span>
+                    <span className="text-muted-foreground">{formatDateTime(s.occurred_at)}</span>
                     <span className="font-mono tabular-nums">{formatMoney(s.total, currency)}</span>
                   </li>
                 ))}
