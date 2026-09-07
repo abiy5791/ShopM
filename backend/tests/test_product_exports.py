@@ -5,10 +5,12 @@ import io
 import pytest
 from openpyxl import Workbook, load_workbook
 
+from apps.activity.models import ActivityLog
 from apps.catalog import excel, pdf
 from apps.catalog.models import Category, Product, Supplier
 from apps.inventory.models import InventoryTransaction
 from apps.inventory.services import ledger_stock, record_transaction
+from apps.purchases.models import Purchase
 
 pytestmark = pytest.mark.django_db
 
@@ -108,17 +110,19 @@ def test_opening_stock_creates_a_ledger_row(make_user, make_shop):
     assert result["stock_set"] == 1
     assert product.stock_cached == 12
     assert ledger_stock(product) == 12  # the ledger, not just the cache
+    # Booked as a purchase, so the ledger row carries its cost and points back
+    # at the purchase the stock came in on.
     txn = InventoryTransaction.objects.get(product=product)
-    assert (txn.quantity, txn.type, txn.notes, txn.user) == (
-        12,
-        "adjustment",
-        "Opening stock",
-        owner,
-    )
+    assert (txn.quantity, txn.type, txn.user) == (12, "purchase", owner)
+    assert (txn.unit_cost, txn.reference_type) == (9000, "purchase")
 
 
-def test_opening_stock_is_ignored_for_products_that_already_exist(make_user, make_shop):
-    """Re-importing a file must never silently inflate stock."""
+def test_a_quantity_on_an_existing_product_restocks_it(make_user, make_shop):
+    """A quantity stocks its row in whether the product is new or not.
+
+    So importing the same file twice does add the stock twice. That is the
+    point of the dry run, which reports the quantity every row would add.
+    """
     shop = make_shop(make_user("o@shopm.local"))
     sheet = _sheet([_row(opening_stock=12)])
     excel.import_products(sheet, shop=shop, currency="ETB")
@@ -126,9 +130,9 @@ def test_opening_stock_is_ignored_for_products_that_already_exist(make_user, mak
     sheet.seek(0)
     result = excel.import_products(sheet, shop=shop, currency="ETB")
 
-    assert (result["updated"], result["stock_set"]) == (1, 0)
-    assert shop.products.get().stock_cached == 12  # not 24
-    assert InventoryTransaction.objects.count() == 1
+    assert (result["updated"], result["stock_set"]) == (1, 1)
+    assert shop.products.get().stock_cached == 24
+    assert InventoryTransaction.objects.count() == 2
 
 
 def test_blank_opening_stock_posts_nothing(make_user, make_shop):
@@ -413,3 +417,361 @@ def test_cashier_cannot_import_or_get_the_template(make_user, make_shop, auth):
         ).status_code
         == 403
     )
+
+
+# --- dry run: plan the import, write nothing, name every collision ---
+def test_dry_run_writes_nothing_and_reports_the_overwrite(make_user, make_shop):
+    """The production bug: a new sheet reusing a live SKU silently replaced it."""
+    shop = make_shop(make_user("o@shopm.local"))
+    Product.objects.create(
+        shop=shop,
+        sku="A-1",
+        name="Cola 500ml",
+        purchase_price=9000,
+        selling_price=15000,
+        category=Category.objects.create(shop=shop, name="Beverages"),
+    )
+
+    result = excel.import_products(
+        _sheet([_row(sku="A-1", name="Notebook A4", selling_price=60, category="Stationery")]),
+        shop=shop,
+        currency="ETB",
+        dry_run=True,
+    )
+
+    assert (result["dry_run"], result["created"], result["updated"]) == (True, 0, 1)
+    assert result["conflict_count"] == 1
+    [conflict] = result["conflicts"]
+    assert (conflict["row"], conflict["sku"]) == (2, "A-1")
+    assert conflict["existing_name"] == "Cola 500ml"
+    assert conflict["duplicate_of_row"] is None
+    changes = {c["field"]: (c["from"], c["to"]) for c in conflict["changes"]}
+    assert changes["name"] == ("Cola 500ml", "Notebook A4")
+    # Money is diffed in the major units the sheet shows, not stored minor units.
+    assert changes["selling_price"] == ("150.00", "60.00")
+    assert changes["category"] == ("Beverages", "Stationery")
+
+    shop.products.get(sku="A-1").refresh_from_db()
+    assert shop.products.get(sku="A-1").name == "Cola 500ml"
+    # A planned category is not created either — a preview leaves no trace.
+    assert not Category.objects.filter(shop=shop, name="Stationery").exists()
+
+
+def test_dry_run_reports_no_conflict_for_new_skus(make_user, make_shop):
+    shop = make_shop(make_user("o@shopm.local"))
+
+    result = excel.import_products(
+        _sheet([_row(sku="A-1", opening_stock=12), _row(sku="A-2")]),
+        shop=shop,
+        currency="ETB",
+        dry_run=True,
+    )
+
+    assert (result["created"], result["updated"], result["stock_set"]) == (2, 0, 1)
+    assert result["conflicts"] == []
+    assert not shop.products.exists()
+
+
+def test_dry_run_flags_a_sku_repeated_inside_the_sheet(make_user, make_shop):
+    shop = make_shop(make_user("o@shopm.local"))
+
+    result = excel.import_products(
+        _sheet([_row(sku="A-1", name="Cola"), _row(sku="A-1", name="Pen")]),
+        shop=shop,
+        currency="ETB",
+        dry_run=True,
+    )
+
+    assert (result["created"], result["updated"]) == (1, 1)
+    [conflict] = result["conflicts"]
+    # Points back at the earlier row, so the user can fix the file itself.
+    assert (conflict["row"], conflict["duplicate_of_row"]) == (3, 2)
+    assert conflict["existing_name"] == "Cola"
+
+
+def test_dry_run_still_reports_row_errors(make_user, make_shop):
+    shop = make_shop(make_user("o@shopm.local"))
+
+    result = excel.import_products(
+        _sheet([_row(sku=""), _row(sku="A-1", selling_price="abc")]),
+        shop=shop,
+        currency="ETB",
+        dry_run=True,
+    )
+
+    assert result["skipped"] == 2
+    assert [e["row"] for e in result["errors"]] == [2, 3]
+
+
+def test_dry_run_endpoint_leaves_the_catalogue_alone(make_user, make_shop, auth):
+    owner = make_user("o@shopm.local")
+    shop = make_shop(owner)
+    Product.objects.create(shop=shop, sku="A-1", name="Cola", selling_price=15000)
+
+    resp = auth(owner, shop).post(
+        "/api/v1/products/import?dry_run=1",
+        {"file": _sheet([_row(sku="A-1", name="Pen")])},
+        format="multipart",
+    )
+
+    assert resp.status_code == 200
+    assert resp.data["dry_run"] is True
+    assert resp.data["conflicts"][0]["existing_name"] == "Cola"
+    assert shop.products.get(sku="A-1").name == "Cola"
+    # A preview is not an event worth auditing.
+    assert not ActivityLog.objects.filter(action="product.import").exists()
+
+
+def test_import_after_preview_commits(make_user, make_shop, auth):
+    owner = make_user("o@shopm.local")
+    shop = make_shop(owner)
+    Product.objects.create(shop=shop, sku="A-1", name="Cola", selling_price=15000)
+    client = auth(owner, shop)
+
+    client.post(
+        "/api/v1/products/import?dry_run=1",
+        {"file": _sheet([_row(sku="A-1", name="Pen")])},
+        format="multipart",
+    )
+    resp = client.post(
+        "/api/v1/products/import",
+        {"file": _sheet([_row(sku="A-1", name="Pen")])},
+        format="multipart",
+    )
+
+    assert (resp.status_code, resp.data["updated"]) == (200, 1)
+    assert shop.products.get(sku="A-1").name == "Pen"
+    assert ActivityLog.objects.filter(action="product.import").count() == 1
+
+
+def test_dry_run_ignores_a_reimport_that_changes_nothing(make_user, make_shop):
+    """Re-importing an untouched export matches every SKU but overwrites nothing."""
+    shop = make_shop(make_user("o@shopm.local"))
+    excel.import_products(_sheet([_row(sku="A-1")]), shop=shop, currency="ETB")
+
+    result = excel.import_products(
+        _sheet([_row(sku="A-1")]), shop=shop, currency="ETB", dry_run=True
+    )
+
+    assert (result["updated"], result["conflict_count"]) == (1, 0)
+    assert result["conflicts"] == []
+
+
+# --- imported stock is booked as one purchase, so it has provenance ---
+def test_import_books_one_paid_purchase_for_the_whole_sheet(make_user, make_shop):
+    owner = make_user("o@shopm.local")
+    shop = make_shop(owner)
+    # Already in the catalogue, so this row is a restock rather than a creation —
+    # it still belongs on the purchase.
+    Product.objects.create(shop=shop, sku="A-1", name="Cola")
+
+    result = excel.import_products(
+        _sheet(
+            [
+                _row(sku="A-1", supplier="Acme", purchase_price=90, opening_stock=10),
+                _row(sku="A-2", supplier="Acme", purchase_price=50, opening_stock=4),
+                _row(sku="A-3", supplier="Globex", purchase_price=20, opening_stock=3),
+                _row(sku="A-4", supplier="Globex", opening_stock=0),  # nothing to stock in
+            ]
+        ),
+        shop=shop,
+        currency="ETB",
+        user=owner,
+    )
+
+    # One purchase for the run, not one per supplier and not one per row.
+    assert (result["stock_set"], result["purchases"]) == (3, 1)
+    purchase = Purchase.objects.get()
+    # Total is the sum of unit cost x quantity over every line.
+    assert purchase.total == 90_00 * 10 + 50_00 * 4 + 20_00 * 3
+    # Paid in full, so the import invents no debt.
+    assert (purchase.amount_paid, purchase.payment_status) == (purchase.total, "paid")
+    assert purchase.notes == excel.IMPORT_PURCHASE_NOTE
+    assert {(i.product.sku, i.quantity, i.unit_cost) for i in purchase.items.all()} == {
+        ("A-1", 10, 9000),
+        ("A-2", 4, 5000),
+        ("A-3", 3, 2000),
+    }
+    # The sheet names two suppliers, so crediting either would be wrong.
+    assert purchase.supplier is None
+    assert shop.products.get(sku="A-4").stock_cached == 0
+
+
+def test_a_single_supplier_sheet_credits_that_supplier(make_user, make_shop):
+    owner = make_user("o@shopm.local")
+    shop = make_shop(owner)
+
+    excel.import_products(
+        _sheet(
+            [
+                _row(sku="A-1", supplier="Acme", purchase_price=90, opening_stock=10),
+                _row(sku="A-2", supplier="Acme", purchase_price=50, opening_stock=4),
+            ]
+        ),
+        shop=shop,
+        currency="ETB",
+        user=owner,
+    )
+
+    purchase = Purchase.objects.get()
+    assert purchase.supplier == Supplier.objects.get(name="Acme")
+    # Paid in full, so the supplier is owed nothing for it.
+    assert Supplier.objects.get(name="Acme").payable_cached == 0
+
+
+def test_import_without_a_supplier_still_books_a_purchase(make_user, make_shop):
+    owner = make_user("o@shopm.local")
+    shop = make_shop(owner)
+
+    excel.import_products(
+        _sheet([_row(supplier="", opening_stock=5)]), shop=shop, currency="ETB", user=owner
+    )
+
+    purchase = Purchase.objects.get()
+    assert purchase.supplier is None
+    assert ledger_stock(shop.products.get()) == 5
+
+
+def test_reimport_books_a_second_purchase(make_user, make_shop):
+    """Purchase history follows the stock: a second restock is a second purchase."""
+    owner = make_user("o@shopm.local")
+    shop = make_shop(owner)
+    excel.import_products(_sheet([_row(opening_stock=12)]), shop=shop, currency="ETB", user=owner)
+
+    result = excel.import_products(
+        _sheet([_row(opening_stock=12)]), shop=shop, currency="ETB", user=owner
+    )
+
+    assert (result["updated"], result["stock_set"], result["purchases"]) == (1, 1, 1)
+    assert Purchase.objects.count() == 2
+    assert shop.products.get().stock_cached == 24
+
+
+def test_a_sheet_with_no_quantities_books_no_purchase(make_user, make_shop):
+    owner = make_user("o@shopm.local")
+    shop = make_shop(owner)
+
+    result = excel.import_products(
+        _sheet([_row(sku="A-1"), _row(sku="A-2")]), shop=shop, currency="ETB", user=owner
+    )
+
+    assert (result["created"], result["stock_set"], result["purchases"]) == (2, 0, 0)
+    assert not Purchase.objects.exists()
+
+
+def test_dry_run_books_no_purchase(make_user, make_shop):
+    owner = make_user("o@shopm.local")
+    shop = make_shop(owner)
+
+    excel.import_products(
+        _sheet([_row(opening_stock=12)]), shop=shop, currency="ETB", user=owner, dry_run=True
+    )
+
+    assert not Purchase.objects.exists()
+    assert not InventoryTransaction.objects.exists()
+
+
+def test_opening_stock_falls_back_to_an_adjustment_without_a_user(make_user, make_shop):
+    """Purchase.user is non-null, so a caller with no user still gets the stock."""
+    shop = make_shop(make_user("o@shopm.local"))
+
+    result = excel.import_products(_sheet([_row(opening_stock=7)]), shop=shop, currency="ETB")
+
+    assert (result["stock_set"], result["purchases"]) == (1, 0)
+    assert not Purchase.objects.exists()
+    txn = InventoryTransaction.objects.get()
+    assert (txn.type, txn.quantity, txn.notes) == ("adjustment", 7, "Opening stock")
+
+
+def test_a_rejected_row_books_no_opening_stock(make_user, make_shop):
+    owner = make_user("o@shopm.local")
+    shop = make_shop(owner)
+
+    result = excel.import_products(
+        _sheet([_row(sku="A-1", opening_stock=5), _row(sku="A-2", selling_price="abc")]),
+        shop=shop,
+        currency="ETB",
+        user=owner,
+    )
+
+    assert (result["created"], result["skipped"], result["stock_set"]) == (1, 1, 1)
+    [item] = Purchase.objects.get().items.all()
+    assert item.product.sku == "A-1"
+
+
+def test_dry_run_lists_the_products_it_would_add(make_user, make_shop):
+    shop = make_shop(make_user("o@shopm.local"))
+
+    result = excel.import_products(
+        _sheet(
+            [
+                _row(sku="A-1", name="Cola", supplier="Acme", purchase_price=90, opening_stock=12),
+                _row(sku=""),  # rejected, so it is not something we would add
+            ]
+        ),
+        shop=shop,
+        currency="ETB",
+        dry_run=True,
+    )
+
+    assert (result["created"], result["skipped"]) == (1, 1)
+    [creation] = result["creations"]
+    assert (creation["row"], creation["sku"], creation["name"]) == (2, "A-1", "Cola")
+    assert (creation["supplier"], creation["opening_stock"]) == ("Acme", 12)
+    # Money in the units the sheet shows, matching the conflict diff.
+    assert (creation["purchase_price"], creation["selling_price"]) == ("90.00", "150.00")
+
+
+def test_dry_run_does_not_list_an_existing_sku_as_a_creation(make_user, make_shop):
+    shop = make_shop(make_user("o@shopm.local"))
+    Product.objects.create(shop=shop, sku="A-1", name="Cola")
+
+    result = excel.import_products(
+        _sheet([_row(sku="A-1", name="Pen"), _row(sku="A-2")]), shop=shop, dry_run=True
+    )
+
+    assert [c["sku"] for c in result["creations"]] == ["A-2"]
+    assert [c["sku"] for c in result["conflicts"]] == ["A-1"]
+
+
+def test_dry_run_reports_the_stock_a_row_would_add_to_an_existing_product(make_user, make_shop):
+    """The re-import guard is now the preview, so it has to show the quantity."""
+    shop = make_shop(make_user("o@shopm.local"))
+    excel.import_products(_sheet([_row(sku="A-1", opening_stock=12)]), shop=shop, currency="ETB")
+
+    result = excel.import_products(
+        _sheet([_row(sku="A-1", opening_stock=12)]), shop=shop, currency="ETB", dry_run=True
+    )
+
+    # Nothing about the product changes, but 12 more units would land.
+    assert (result["conflict_count"], result["overwrite_count"]) == (1, 0)
+    [conflict] = result["conflicts"]
+    assert (conflict["opening_stock"], conflict["changes"]) == (12, [])
+    assert result["stock_set"] == 1
+
+
+def test_dry_run_separates_overwrites_from_plain_restocks(make_user, make_shop):
+    shop = make_shop(make_user("o@shopm.local"))
+    # Matching _row()'s other columns, so the only differences are the ones under test.
+    existing = {"purchase_price": 9000, "selling_price": 15000, "min_stock_alert": 5}
+    Product.objects.create(shop=shop, sku="A-1", name="Cola", **existing)
+    Product.objects.create(shop=shop, sku="A-2", name="Pen", **existing)
+
+    result = excel.import_products(
+        _sheet(
+            [
+                _row(sku="A-1", name="Notebook", opening_stock=0),  # renames, adds nothing
+                _row(sku="A-2", name="Pen", opening_stock=6),  # adds stock, renames nothing
+            ]
+        ),
+        shop=shop,
+        currency="ETB",
+        dry_run=True,
+    )
+
+    assert (result["conflict_count"], result["overwrite_count"]) == (2, 1)
+    by_sku = {c["sku"]: c for c in result["conflicts"]}
+    assert [c["field"] for c in by_sku["A-1"]["changes"]] == ["name"]
+    assert by_sku["A-1"]["opening_stock"] == 0
+    assert by_sku["A-2"]["changes"] == []
+    assert by_sku["A-2"]["opening_stock"] == 6

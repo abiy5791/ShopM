@@ -52,6 +52,7 @@ import {
   useImportProducts,
   useProducts,
 } from "./api";
+import { ImportPreviewDialog } from "./ImportPreviewDialog";
 import { ProductDetailDialog } from "./ProductDetailDialog";
 import { ProductFormDialog } from "./ProductFormDialog";
 import { StockAdjustDialog } from "./StockAdjustDialog";
@@ -78,6 +79,9 @@ export default function ProductsPage() {
   const importProducts = useImportProducts();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [downloading, setDownloading] = useState<Download | null>(null);
+  // The planned import awaiting confirmation. The file is kept alongside it so
+  // confirming re-sends the very bytes that were previewed.
+  const [pending, setPending] = useState<{ file: File; preview: ImportResult } | null>(null);
 
   const [search, setSearch] = useState("");
   const [lowStock, setLowStock] = useState(false);
@@ -121,29 +125,56 @@ export default function ProductsPage() {
     }
   }
 
+  /** Report a finished (non-dry) import: what landed, and the first row that didn't. */
+  function reportImport(result: ImportResult) {
+    const stock = result.stock_set
+      ? `Stock recorded for ${result.stock_set} product${
+          result.stock_set === 1 ? "" : "s"
+        } as one paid purchase.`
+      : undefined;
+    if (result.skipped === 0) {
+      toast.success(summarise(result), { description: stock });
+      return;
+    }
+    // Skipped rows are the whole point of the report — name the first one so
+    // the user can find it in Excel instead of guessing.
+    const [first] = result.errors;
+    toast.warning(`${summarise(result)}, ${result.skipped} skipped`, {
+      description: first ? `Row ${first.row}: ${first.error}` : stock,
+      duration: 8000,
+    });
+  }
+
+  function reportImportError(error: unknown) {
+    const detail = isAxiosError<{ detail?: string }>(error) ? error.response?.data?.detail : null;
+    toast.error(detail ?? "Import failed. Check the file format.");
+  }
+
+  /**
+   * Choosing a file only *plans* the import; the preview commits it. A
+   * spreadsheet is opaque until it has landed, and import upserts on SKU — a
+   * sheet reusing one overwrites an unrelated product — so the plan is always
+   * shown first, never applied straight from the file picker.
+   */
   async function handleImport(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = ""; // allow re-selecting the same file
     if (!file) return;
     try {
-      const result = await importProducts.mutateAsync(file);
-      const stock = result.stock_set
-        ? `Opening stock recorded for ${result.stock_set} product${result.stock_set === 1 ? "" : "s"}.`
-        : undefined;
-      if (result.skipped === 0) {
-        toast.success(summarise(result), { description: stock });
-        return;
-      }
-      // Skipped rows are the whole point of the report — name the first one so
-      // the user can find it in Excel instead of guessing.
-      const [first] = result.errors;
-      toast.warning(`${summarise(result)}, ${result.skipped} skipped`, {
-        description: first ? `Row ${first.row}: ${first.error}` : stock,
-        duration: 8000,
-      });
+      setPending({ file, preview: await importProducts.mutateAsync({ file, dryRun: true }) });
     } catch (error) {
-      const detail = isAxiosError<{ detail?: string }>(error) ? error.response?.data?.detail : null;
-      toast.error(detail ?? "Import failed. Check the file format.");
+      reportImportError(error);
+    }
+  }
+
+  async function confirmImport() {
+    if (!pending) return;
+    try {
+      reportImport(await importProducts.mutateAsync({ file: pending.file }));
+    } catch (error) {
+      reportImportError(error);
+    } finally {
+      setPending(null);
     }
   }
 
@@ -177,7 +208,8 @@ export default function ProductsPage() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" disabled={importProducts.isPending}>
                     <Upload className="h-4 w-4" />
-                    {importProducts.isPending ? "Importing…" : "Import"}
+                    {/* The first pass only plans the import, so don't call it importing. */}
+                    {importProducts.isPending && !pending ? "Reading…" : "Import"}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -468,6 +500,14 @@ export default function ProductsPage() {
           <TransactionsDialog
             product={historyFor}
             onOpenChange={(o) => !o && setHistoryFor(null)}
+          />
+          <ImportPreviewDialog
+            key={pending?.file.name}
+            preview={pending?.preview ?? null}
+            fileName={pending?.file.name ?? ""}
+            importing={importProducts.isPending}
+            onConfirm={() => void confirmImport()}
+            onCancel={() => setPending(null)}
           />
           <ConfirmDialog
             open={deleting !== null}

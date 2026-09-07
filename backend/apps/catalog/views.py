@@ -235,7 +235,24 @@ class ProductViewSet(ShopScopedModelViewSet):
             }
         },
         responses={200: {"type": "object"}},
-        description="Import/upsert products from an .xlsx file (keyed on SKU). Owner only.",
+        parameters=[
+            OpenApiParameter(
+                "dry_run",
+                bool,
+                description=(
+                    "Plan the import without writing anything. The response lists every "
+                    "SKU that already exists under `conflicts`, with the fields the "
+                    "sheet would overwrite."
+                ),
+            )
+        ],
+        description=(
+            "Import/upsert products from an .xlsx file (keyed on SKU). Owner only. "
+            "Call with `dry_run=1` first: importing a SKU that already exists "
+            "overwrites that product, so the caller confirms before committing. "
+            "Opening stock on a newly created product is booked as a paid "
+            "purchase per supplier, so imported stock appears in purchase history."
+        ),
     )
     @action(
         detail=False,
@@ -253,15 +270,21 @@ class ProductViewSet(ShopScopedModelViewSet):
             limit = MAX_IMPORT_BYTES // (1024 * 1024)
             return bad_request(f"That file is larger than {limit} MB.", "file_too_large")
 
+        dry_run = str(request.query_params.get("dry_run", "")).lower() in ("1", "true", "yes")
         try:
             result = excel.import_products(
                 upload,
                 shop=self.active_shop,
                 currency=self._currency(),
                 user=request.user,
+                dry_run=dry_run,
             )
         except excel.SpreadsheetError as exc:
             return bad_request(str(exc), "invalid_spreadsheet")
+
+        if dry_run:
+            # Nothing changed, so there is nothing to audit.
+            return Response(result)
 
         log_activity(
             user=request.user,
@@ -269,7 +292,9 @@ class ProductViewSet(ShopScopedModelViewSet):
             entity_type="product",
             shop=self.active_shop,
             ip=get_client_ip(request),
-            # Counts only — the per-row errors can be long and belong to the response.
-            metadata={k: v for k, v in result.items() if k != "errors"},
+            # Counts only — the per-row detail can be long and belongs to the response.
+            metadata={
+                k: v for k, v in result.items() if k not in ("errors", "conflicts", "dry_run")
+            },
         )
         return Response(result)

@@ -152,14 +152,71 @@ export interface ImportRowError {
   error: string;
 }
 
+/** One field an import row would overwrite, in the units the sheet shows. */
+export interface ImportChange {
+  field: string;
+  from: string;
+  to: string;
+}
+
+/** A sheet row whose SKU already exists, and what importing it would do to that product. */
+export interface ImportConflict {
+  /** Row number as Excel shows it. */
+  row: number;
+  sku: string;
+  /** Name of the product this row lands on. */
+  existing_name: string;
+  /** Set when the clash is with an earlier row of the same sheet, not the catalogue. */
+  duplicate_of_row: number | null;
+  /** Units this row adds to that product's stock. Zero when the row only edits fields. */
+  opening_stock: number;
+  /** Fields the row rewrites. Empty when the row only adds stock. */
+  changes: ImportChange[];
+}
+
+/** A sheet row the import would add, as the preview shows it. */
+export interface ImportCreation {
+  /** Row number as Excel shows it. */
+  row: number;
+  sku: string;
+  name: string;
+  category: string;
+  supplier: string;
+  /** Major units, already formatted for the shop's currency. */
+  purchase_price: string;
+  selling_price: string;
+  opening_stock: number;
+}
+
 export interface ImportResult {
+  /** True when the server only planned the import and wrote nothing. */
+  dry_run: boolean;
   created: number;
   updated: number;
   /** Rows rejected — may exceed `errors.length`, which the server caps. */
   skipped: number;
-  /** New products whose `opening_stock` was posted to the inventory ledger. */
+  /** Rows whose quantity was stocked in, new products and restocks alike. */
   stock_set: number;
+  /** Purchases booked for that stock — one for the whole import, already paid. */
+  purchases: number;
+  /** On a dry run: what that purchase will come to, formatted in major units. */
+  purchase_total: string;
   errors: ImportRowError[];
+  /** Populated on a dry run; capped by the server, so possibly shorter than `created`. */
+  creations: ImportCreation[];
+  /** Populated on a dry run; capped by the server, so possibly shorter than `conflict_count`. */
+  conflicts: ImportConflict[];
+  /**
+   * How many rows would change an existing product — rewrite a field, add stock,
+   * or both. Lower than `updated`, which also counts rows that match a SKU
+   * without changing anything.
+   */
+  conflict_count: number;
+  /**
+   * The subset of those that rewrite a field. This is the destructive number:
+   * adding stock is undoable with a stock adjustment, a lost name is not.
+   */
+  overwrite_count: number;
 }
 
 async function downloadFile(path: string, fallbackName: string, params?: Record<string, string>) {
@@ -180,15 +237,24 @@ export function downloadImportTemplate() {
   return downloadFile("/products/import-template", "products-import-template.xlsx");
 }
 
+/**
+ * Upsert products from a sheet. Import is keyed on SKU, so a row reusing a SKU
+ * replaces that product outright — always run `dryRun` first and show the
+ * conflicts it returns before committing.
+ */
 export function useImportProducts() {
   const invalidate = useInvalidateProducts();
   return useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async ({ file, dryRun = false }: { file: File; dryRun?: boolean }) => {
       const form = new FormData();
       form.append("file", file);
-      return (await api.post<ImportResult>("/products/import", form)).data;
+      const params = dryRun ? { dry_run: "1" } : undefined;
+      return (await api.post<ImportResult>("/products/import", form, { params })).data;
     },
-    onSuccess: invalidate,
+    // A dry run changes nothing, so there is nothing to refetch.
+    onSuccess: (result) => {
+      if (!result.dry_run) invalidate();
+    },
   });
 }
 
