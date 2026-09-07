@@ -6,11 +6,25 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 import { EthiopianDatePicker } from "./ethiopian-date-picker";
 
+/** A date in a 30-day Ethiopian month, for tests that need to click a given day.
+ *
+ *  Seeding the picker from "today" makes the day grid depend on the date the
+ *  suite runs: Pagumen, the 13th month, has only 5 or 6 days, so during it
+ *  (roughly 6-10 September) most day numbers simply are not rendered.
+ */
+const IN_A_FULL_MONTH = "2026-01-15";
+
 /** The picker as it is actually used inside a modal dialog — the sale-edit and
  *  expense forms, and the POS cart sheet on phones. */
-function PickerInDialog({ onChange = vi.fn() }: { onChange?: (iso: string) => void }) {
+function PickerInDialog({
+  onChange = vi.fn(),
+  initialValue = "",
+}: {
+  onChange?: (iso: string) => void;
+  initialValue?: string;
+}) {
   const [open, setOpen] = useState(true);
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState(initialValue);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent aria-describedby={undefined}>
@@ -49,7 +63,7 @@ describe("EthiopianDatePicker inside a modal dialog", () => {
 
   it("keeps the surrounding dialog open when a day is picked", async () => {
     const onChange = vi.fn();
-    render(<PickerInDialog onChange={onChange} />);
+    render(<PickerInDialog onChange={onChange} initialValue={IN_A_FULL_MONTH} />);
     const panel = await openCalendar();
 
     const day = within(panel).getByRole("button", { name: "15" });
